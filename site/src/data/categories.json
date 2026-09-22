@@ -1540,20 +1540,16 @@
       ]
     },
     {
-      "id": "versus-screens",
-      "mods": [
-        {"name":"Diretide Versus Screen","styleLabel":null,"image":{"src":"/mods/diretide-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
-        {"name":"Muerta Versus Screen","styleLabel":null,"image":{"src":"/mods/muerta-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
-        {"name":"Nemestice Versus Screen","styleLabel":null,"image":{"src":"/mods/nemestice-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
-        {"name":"TI 2024 Versus Screen","styleLabel":null,"image":{"src":"/mods/ti-2024-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
-        {"name":"TI9 Versus Screen I","styleLabel":null,"image":{"src":"/mods/ti9-versus-screen-i.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
-        {"name":"TI9 Versus Screen II","styleLabel":null,"image":{"src":"/mods/ti9-versus-screen-ii.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
-        {"name":"Winter Versus Screen","styleLabel":null,"image":{"src":"/mods/winter-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295}
-      ]
-    },
-    {
       "id": "herofx",
       "mods": [
+        {
+          "name": "Ancient Apparition Shatterblast",
+          "styleLabel": null,
+          "image": {"src":"/mods/ancient-apparition-shatterblast.webp","width":854,"height":480},
+          "author": "Ромчик",
+          "authorUrl": "https://watchmy.bio/shidehara",
+          "date": 1790113207
+        },
         {
           "name": "Keeper of the Light Northlight Illuminance",
           "styleLabel": null,
@@ -1591,17 +1587,6 @@
       ]
     },
     {
-      "id": "packs",
-      "mods": [
-        {"name":"Autumn Pack","styleLabel":null,"image":{"src":"/mods/autumn-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
-        {"name":"Black & White Pack","styleLabel":null,"image":{"src":"/mods/black-white-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
-        {"name":"Lite Optimization Pack","styleLabel":null,"image":{"src":"/mods/lite-optimization-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
-        {"name":"Purple Pack","styleLabel":null,"image":{"src":"/mods/purple-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
-        {"name":"Umbrella Pack","styleLabel":null,"image":{"src":"/mods/umbrella-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
-        {"name":"Winter Pack","styleLabel":null,"image":{"src":"/mods/winter-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null}
-      ]
-    },
-    {
       "id": "pedestal",
       "mods": [
         {
@@ -1615,7 +1600,46 @@
         {"name":"Drow Ranger Pedestal","styleLabel":null,"image":{"src":"/mods/drow-ranger-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
         {"name":"Earthshaker Pedestal","styleLabel":null,"image":{"src":"/mods/earthshaker-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
         {"name":"Snow Pedestal","styleLabel":null,"image":{"src":"/mods/snow-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
-        {"name":"Windranger Pedestal","styleLabel":null,"image":{"src":"/mods/windranger-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775}
+        {"name":"Windranger Pedestal","styleLabel":null,"image":{"src":"/mods/windranger-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
+        {
+          "name": "Spectre Arcana Pedestal",
+          "styleLabel": "Style I",
+          "image": {"src":"/mods/spectre-arcana-pedestal-style-i.webp","width":854,"height":480},
+          "author": "depex",
+          "authorUrl": "https://t.me/depexfx",
+          "date": null
+        },
+        {
+          "name": "Spectre Arcana Pedestal",
+          "styleLabel": "Style II",
+          "image": {"src":"/mods/spectre-arcana-pedestal-style-ii.webp","width":854,"height":480},
+          "author": "depex",
+          "authorUrl": "https://t.me/depexfx",
+          "date": null
+        }
+      ]
+    },
+    {
+      "id": "versus-screens",
+      "mods": [
+        {"name":"Diretide Versus Screen","styleLabel":null,"image":{"src":"/mods/diretide-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
+        {"name":"Muerta Versus Screen","styleLabel":null,"image":{"src":"/mods/muerta-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
+        {"name":"Nemestice Versus Screen","styleLabel":null,"image":{"src":"/mods/nemestice-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
+        {"name":"TI 2024 Versus Screen","styleLabel":null,"image":{"src":"/mods/ti-2024-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
+        {"name":"TI9 Versus Screen I","styleLabel":null,"image":{"src":"/mods/ti9-versus-screen-i.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
+        {"name":"TI9 Versus Screen II","styleLabel":null,"image":{"src":"/mods/ti9-versus-screen-ii.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295},
+        {"name":"Winter Versus Screen","styleLabel":null,"image":{"src":"/mods/winter-versus-screen.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1770643295}
+      ]
+    },
+    {
+      "id": "packs",
+      "mods": [
+        {"name":"Autumn Pack","styleLabel":null,"image":{"src":"/mods/autumn-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
+        {"name":"Black & White Pack","styleLabel":null,"image":{"src":"/mods/black-white-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
+        {"name":"Lite Optimization Pack","styleLabel":null,"image":{"src":"/mods/lite-optimization-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
+        {"name":"Purple Pack","styleLabel":null,"image":{"src":"/mods/purple-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
+        {"name":"Umbrella Pack","styleLabel":null,"image":{"src":"/mods/umbrella-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null},
+        {"name":"Winter Pack","styleLabel":null,"image":{"src":"/mods/winter-pack.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":null}
       ]
     },
     {
