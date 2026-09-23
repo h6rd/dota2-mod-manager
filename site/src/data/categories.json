@@ -1590,6 +1590,22 @@
       "id": "pedestal",
       "mods": [
         {
+          "name": "Spectre Arcana Pedestal",
+          "styleLabel": "Style I",
+          "image": {"src":"/mods/spectre-arcana-pedestal-style-i.webp","width":854,"height":480},
+          "author": "depex",
+          "authorUrl": "https://t.me/depexfx",
+          "date": 1790118406
+        },
+        {
+          "name": "Spectre Arcana Pedestal",
+          "styleLabel": "Style II",
+          "image": {"src":"/mods/spectre-arcana-pedestal-style-ii.webp","width":854,"height":480},
+          "author": "depex",
+          "authorUrl": "https://t.me/depexfx",
+          "date": 1790118406
+        },
+        {
           "name": "Earthshaker Burning Pedestal",
           "styleLabel": null,
           "image": {"src":"/mods/earthshaker-burning-pedestal.webp","width":854,"height":480},
@@ -1600,23 +1616,7 @@
         {"name":"Drow Ranger Pedestal","styleLabel":null,"image":{"src":"/mods/drow-ranger-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
         {"name":"Earthshaker Pedestal","styleLabel":null,"image":{"src":"/mods/earthshaker-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
         {"name":"Snow Pedestal","styleLabel":null,"image":{"src":"/mods/snow-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
-        {"name":"Windranger Pedestal","styleLabel":null,"image":{"src":"/mods/windranger-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775},
-        {
-          "name": "Spectre Arcana Pedestal",
-          "styleLabel": "Style I",
-          "image": {"src":"/mods/spectre-arcana-pedestal-style-i.webp","width":854,"height":480},
-          "author": "depex",
-          "authorUrl": "https://t.me/depexfx",
-          "date": null
-        },
-        {
-          "name": "Spectre Arcana Pedestal",
-          "styleLabel": "Style II",
-          "image": {"src":"/mods/spectre-arcana-pedestal-style-ii.webp","width":854,"height":480},
-          "author": "depex",
-          "authorUrl": "https://t.me/depexfx",
-          "date": null
-        }
+        {"name":"Windranger Pedestal","styleLabel":null,"image":{"src":"/mods/windranger-pedestal.webp","width":854,"height":480},"author":null,"authorUrl":null,"date":1788940775}
       ]
     },
     {
