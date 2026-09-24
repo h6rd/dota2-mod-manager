@@ -1,5 +1,5 @@
 {
-  "count": 1393,
+  "count": 1394,
   "mods": {
     "0000ecb27ee7db1063087b627a7cdb94651a4655": [{"name":"Windranger Autumn Arcana","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "002fe0eee5ace922f363486ddc1f979d8f2c232e": [{"name":"Gold River","categoryId":"river","styleLabel":null,"type":"vpk"}],
@@ -102,6 +102,7 @@
     "109b442316dea2b94b9a4836eac9287e85da4f72": [{"name":"Centaur Infernal Menace","categoryId":"hero-items","styleLabel":null,"type":"vpk"}],
     "10a6698af454ee765046775753da7b4c28852402": [{"name":"Malenia","categoryId":"backgrounds","styleLabel":null,"type":"vpk"}],
     "10cdcdaf40b00af0cc1ee085da7211b2a130c110": [{"name":"Sasuke Invoker","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
+    "10e574a6eb7c21733225550f3fe09593cfb58ece": [{"name":"Earthshaker Planetfall Burning","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "10ef9cfc9eb33d5e7baf6e57c8bd752ac18d455d": [{"name":"Gotohouse Hud","categoryId":"huds","styleLabel":null,"type":"vpk"}],
     "10f807db0be9fedb665b3927888ae3604622fca8": [{"name":"Chen Seed of Strife","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "110e6998ee90998c4eb623c507d23d6b40e08495": [{"name":"Bare Natures Prophet","categoryId":"heroes","styleLabel":null,"type":"vpk"}],

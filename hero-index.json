@@ -1,6 +1,6 @@
 {
   "heroes": 147,
-  "mods": 1376,
+  "mods": 1377,
   "byHero": {
     "abaddon": {
       "name": "Abaddon",
@@ -457,6 +457,7 @@
         {"name":"Earthshaker Carrot","categoryId":"hero-items","styleLabel":null,"slots":["misc"]},
         {"name":"Earthshaker Deep Magma","categoryId":"heroes","styleLabel":null,"slots":["belt","arms","misc","head","weapon"]},
         {"name":"Earthshaker Gold Blink Dagger","categoryId":"item-effects","styleLabel":null,"slots":[]},
+        {"name":"Earthshaker Planetfall Burning","categoryId":"heroes","styleLabel":null,"slots":["belt","arms","misc","head"]},
         {"name":"Earthshaker Planetfall Reborn","categoryId":"heroes","styleLabel":null,"slots":["belt","arms","misc","head"]},
         {"name":"Earthshaker Purple Arcana","categoryId":"heroes","styleLabel":null,"slots":["belt","arms","misc"]},
         {"name":"Earthshaker Red Arcana","categoryId":"heroes","styleLabel":null,"slots":["misc","arms","belt"]}
