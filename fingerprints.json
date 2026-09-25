@@ -1,5 +1,5 @@
 {
-  "count": 1416,
+  "count": 1420,
   "mods": {
     "0000ecb27ee7db1063087b627a7cdb94651a4655": [{"name":"Windranger Autumn Arcana","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "002fe0eee5ace922f363486ddc1f979d8f2c232e": [{"name":"Gold River","categoryId":"river","styleLabel":null,"type":"vpk"}],
@@ -951,6 +951,7 @@
     "b014fbe0ee46e9c584089929daad02123c36984b": [{"name":"TI10 Ranged Attack","categoryId":"ranged-attack","styleLabel":null,"type":"vpk"}],
     "b0207849092590efd39c99e7252ca7dc8b34268f": [{"name":"Immortal Ancient Apparition","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "b023cfa2fa69f9301ebe826f184e29805209a5ac": [{"name":"Serega Pirat Deny","categoryId":"creep-deny","styleLabel":null,"type":"vpk"}],
+    "b039103a2360bbc409fe4af1a2c48dd4946f2c5c": [{"name":"Dark Tree","categoryId":"backgrounds","styleLabel":null,"type":"vpk"}],
     "b069a3da01ecb1594bde86593e2b225da3378b27": [{"name":"Skeleton Blue Ping","categoryId":"pings","styleLabel":null,"type":"vpk"}],
     "b07a99b89b96c743674a27b71e70ca69372eaab9": [{"name":"Princess Naga Siren","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "b0a8ad0c39091d4a487fe7bc848cfdb6751d022f": [{"name":"Devotions of Dragonus Phylactery II","categoryId":"item-effects","styleLabel":null,"type":"vpk"}],
@@ -966,6 +967,7 @@
     "b2582500d1b57df5403d9fdb11544b0c15c5010a": [{"name":"Reptilian Dire Creeps","categoryId":"creeps","styleLabel":"Style I","type":"vpk"}],
     "b259bbadb2c86f46e5367f92af9d8b91d18ee7f9": [{"name":"Earthshaker Gold Blink Dagger","categoryId":"item-effects","styleLabel":null,"type":"vpk"}],
     "b25b779e3ca874a4e56f77a526a58f4762178074": [{"name":"Invoker Patchouli","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
+    "b2f90c1e976a4036d78e77e7278201798723599a": [{"name":"Sematary","categoryId":"backgrounds","styleLabel":null,"type":"vpk"}],
     "b32502965660a18c42394e50824d9bedf47ac258": [{"name":"Bloodseeker Immortal","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "b32b09cb8d80b0801cd98b57400e6c38a25a0e69": [{"name":"Outworld Destroyer Dark Metter","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "b331c12de6c2c74ed4d5baa83cbb74c295b9b385": [{"name":"Darkness Radiance","categoryId":"item-effects","styleLabel":null,"type":"vpk"}],
@@ -1280,6 +1282,7 @@
     "e94d16194721d6b3cdad0febc2e2f7c121263d55": [{"name":"Lion Fin Kings Charm","categoryId":"hero-items","styleLabel":"Retro","type":"vpk"}],
     "e9a22c31ba9e8ba9af6ea229a6ca479f6184728f": [{"name":"Old Items","categoryId":"item-icons","styleLabel":null,"type":"vpk"}],
     "e9defe4c425d6c44f2058deeeb6f644e6ee49d9c": [{"name":"Cartoon Shader","categoryId":"shaders","styleLabel":null,"type":"vpk"}],
+    "ea269dde610db3d9211af8e648cad4211f68f785": [{"name":"Keeper of the Light Sematary","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "ea3927584a3a685103dc8caa765074dac1718a00": [{"name":"Dagon AWP","categoryId":"sounds","styleLabel":null,"type":"vpk"}],
     "ea71ecfe48e7ab7248bceec48d6f110e4f624e5a": [{"name":"Darkness Pack","categoryId":"ti-bp-effects","styleLabel":null,"type":"vpk"}],
     "ea83ea8368a7ee4af65eafbfaf7d872afc4162ff": [{"name":"Timbersaw Rectifier","categoryId":"hero-items","styleLabel":"Golden","type":"vpk"}],
@@ -1293,6 +1296,7 @@
     "ebdde141816ae1e1f28a1c509ca7533931a7b991": [{"name":"Emblem of the Diretide Green","categoryId":"emblems","styleLabel":null,"type":"vpk"}],
     "ebe318d2367c20ee7c7be1e6481ebbad251f2a27": [{"name":"Muerta Blackwing Bandolera","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "ec1dc85ac148338b7adf0a8da7f6ef5b096f3edf": [{"name":"Ghost Void Spirit","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
+    "ec2cd21d1ce634f73b83d3d06986132e25fca8a1": [{"name":"Omniknight Immortal","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "ec4909e915d07a73cc049d734e46e212dac2bf67": [{"name":"Purple Icons","categoryId":"item-icons","styleLabel":null,"type":"vpk"}],
     "eca69dc64336d3ced1ea99a84b9bbeb14bc7e132": [{"name":"Chaos Knight Cursor","categoryId":"cursors","styleLabel":null,"type":"files"}],
     "ed0747bdc66d93813427e87144bd47f7a5a94302": [{"name":"Luna Twilight Schism","categoryId":"hero-items","styleLabel":null,"type":"vpk"}],
