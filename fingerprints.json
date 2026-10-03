@@ -1,5 +1,5 @@
 {
-  "count": 1496,
+  "count": 1497,
   "mods": {
     "0000ecb27ee7db1063087b627a7cdb94651a4655": [{"name":"Windranger Autumn Arcana","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "002fe0eee5ace922f363486ddc1f979d8f2c232e": [{"name":"Gold River","categoryId":"river","styleLabel":null,"type":"vpk"}],
@@ -975,6 +975,7 @@
     "aab80b69617d7d1d8bda849dbc0c65196a880b09": [{"name":"Enigma Black Hole Kate Scream","categoryId":"hero-sounds","styleLabel":null,"type":"vpk"}],
     "aaf1eb92a7d1c7bfdb2aa659b5d2465dde960200": [{"name":"Monkey King Staff of Gun-Yu","categoryId":"hero-items","styleLabel":"Anniversary","type":"vpk"}],
     "ab29b38c528f8c19b4b2ea436a65da8d88c71fb5": [{"name":"TI8 Fountain Regen III","categoryId":"item-effects","styleLabel":null,"type":"vpk"}],
+    "ab5329dc56a1a2a4583a66efd868053e0dee5248": [{"name":"Default Lite Hud","categoryId":"huds","styleLabel":null,"type":"vpk"}],
     "ab81625289fb8dcdfb4b48c5882504df6c9007d8": [{"name":"Sapphire Click","categoryId":"other","styleLabel":null,"type":"vpk"}],
     "ab8cfe6af59f4e0c0eee2a94b9852df0149eadf1": [{"name":"Lina Fire Flame of Origin","categoryId":"heroes","styleLabel":null,"type":"vpk"}],
     "ab8e158c532f320a435dcbc54120baf3de4c89c9": [{"name":"Clockwerk","categoryId":"mega-kill","styleLabel":null,"type":"vpk"}],
