@@ -13918,6 +13918,93 @@
       ]
     },
     {
+      "id": "meepo",
+      "name": "Meepo",
+      "slug": "meepo",
+      "mods": [
+        {
+          "name": "Kai Meepo",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder","tail"],
+          "image": {"src":"/mods/kai-meepo.webp","width":854,"height":480},
+          "author": "Darkness",
+          "authorUrl": "https://t.me/Darkness_Logovo",
+          "date": 1756539017
+        },
+        {
+          "name": "Meepo Blueness",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder","tail"],
+          "image": {"src":"/mods/meepo-blueness.webp","width":854,"height":480},
+          "author": "lansory",
+          "authorUrl": "https://discord.com/users/1108248721768071210",
+          "date": 1787119140
+        },
+        {
+          "name": "Meepo Fractured Haul",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder","tail"],
+          "image": {"src":"/mods/meepo-fractured-haul.webp","width":854,"height":480},
+          "author": "Niski25",
+          "authorUrl": "https://github.com/cus-nyam",
+          "date": 1787848064
+        },
+        {
+          "name": "Meepo Lotus Bear",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder","tail"],
+          "image": {"src":"/mods/meepo-lotus-bear.webp","width":854,"height":480},
+          "author": null,
+          "authorUrl": null,
+          "date": 1775307626
+        },
+        {
+          "name": "Meepo Mafia",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder","tail"],
+          "image": {"src":"/mods/meepo-mafia.webp","width":854,"height":480},
+          "author": "твавт",
+          "authorUrl": "https://steamcommunity.com/id/myasu0/",
+          "date": 1791389366
+        },
+        {
+          "name": "Meepo Mocking Bird",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder","tail"],
+          "image": {"src":"/mods/meepo-mocking-bird.webp","width":854,"height":480},
+          "author": null,
+          "authorUrl": null,
+          "date": 1775307626
+        },
+        {
+          "name": "Bunshinjutsu Meepo",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["arms","head","weapon","misc","shoulder"],
+          "image": {"src":"/mods/bunshinjutsu-meepo.webp","width":854,"height":480},
+          "author": "Darkness",
+          "authorUrl": "https://t.me/Darkness_Logovo",
+          "date": 1770175798
+        },
+        {
+          "name": "Meepo Diretide",
+          "categoryId": "heroes",
+          "styleLabel": null,
+          "slots": ["head","misc","weapon","shoulder","back"],
+          "image": {"src":"/mods/meepo-diretide.webp","width":854,"height":480},
+          "author": "Haruma",
+          "authorUrl": "https://t.me/DotA_2_Mods",
+          "date": 1779111814
+        }
+      ]
+    },
+    {
       "id": "night_stalker",
       "name": "Night Stalker",
       "slug": "night-stalker",
@@ -14319,83 +14406,6 @@
           "author": "Ромчик",
           "authorUrl": "https://watchmy.bio/shidehara",
           "date": 1784702480
-        }
-      ]
-    },
-    {
-      "id": "meepo",
-      "name": "Meepo",
-      "slug": "meepo",
-      "mods": [
-        {
-          "name": "Kai Meepo",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["arms","head","weapon","misc","shoulder","tail"],
-          "image": {"src":"/mods/kai-meepo.webp","width":854,"height":480},
-          "author": "Darkness",
-          "authorUrl": "https://t.me/Darkness_Logovo",
-          "date": 1756539017
-        },
-        {
-          "name": "Meepo Blueness",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["arms","head","weapon","misc","shoulder","tail"],
-          "image": {"src":"/mods/meepo-blueness.webp","width":854,"height":480},
-          "author": "lansory",
-          "authorUrl": "https://discord.com/users/1108248721768071210",
-          "date": 1787119140
-        },
-        {
-          "name": "Meepo Fractured Haul",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["arms","head","weapon","misc","shoulder","tail"],
-          "image": {"src":"/mods/meepo-fractured-haul.webp","width":854,"height":480},
-          "author": "Niski25",
-          "authorUrl": "https://github.com/cus-nyam",
-          "date": 1787848064
-        },
-        {
-          "name": "Meepo Lotus Bear",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["arms","head","weapon","misc","shoulder","tail"],
-          "image": {"src":"/mods/meepo-lotus-bear.webp","width":854,"height":480},
-          "author": null,
-          "authorUrl": null,
-          "date": 1775307626
-        },
-        {
-          "name": "Meepo Mocking Bird",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["arms","head","weapon","misc","shoulder","tail"],
-          "image": {"src":"/mods/meepo-mocking-bird.webp","width":854,"height":480},
-          "author": null,
-          "authorUrl": null,
-          "date": 1775307626
-        },
-        {
-          "name": "Bunshinjutsu Meepo",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["arms","head","weapon","misc","shoulder"],
-          "image": {"src":"/mods/bunshinjutsu-meepo.webp","width":854,"height":480},
-          "author": "Darkness",
-          "authorUrl": "https://t.me/Darkness_Logovo",
-          "date": 1770175798
-        },
-        {
-          "name": "Meepo Diretide",
-          "categoryId": "heroes",
-          "styleLabel": null,
-          "slots": ["head","misc","weapon","shoulder","back"],
-          "image": {"src":"/mods/meepo-diretide.webp","width":854,"height":480},
-          "author": "Haruma",
-          "authorUrl": "https://t.me/DotA_2_Mods",
-          "date": 1779111814
         }
       ]
     },
