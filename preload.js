@@ -21,10 +21,12 @@ contextBridge.exposeInMainWorld('api', {
   },
   catalog: {
     load: (force) => ipcRenderer.invoke('catalog:load', force),
+    terrainAges: () => ipcRenderer.invoke('catalog:terrainAges'),
   },
   mods: {
     install: (payload) => ipcRenderer.invoke('mods:install', payload),
     list: () => ipcRenderer.invoke('mods:list'),
+    switchOffStaleTerrains: () => ipcRenderer.invoke('mods:switchOffStaleTerrains'),
     setEnabled: (id, enabled) => ipcRenderer.invoke('mods:setEnabled', id, enabled),
     remove: (id) => ipcRenderer.invoke('mods:remove', id),
     // a selection at once: one rebuild of the item schema for the batch, not one per mod
@@ -38,6 +40,8 @@ contextBridge.exposeInMainWorld('api', {
     externalRemove: (fileName) => ipcRenderer.invoke('mods:externalRemove', fileName),
     exportSingle: (id) => ipcRenderer.invoke('mods:exportSingle', id),
     unpackToFolder: (id) => ipcRenderer.invoke('mods:unpackToFolder', id),
+    // the pre-patch mark off one mod, once its owner checked it in the game
+    clearPrePatch: (id) => ipcRenderer.invoke('mods:clearPrePatch', id),
     importDialog: () => ipcRenderer.invoke('mods:importDialog'),
     importFolderDialog: () => ipcRenderer.invoke('mods:importFolderDialog'),
     importPaths: (paths) => ipcRenderer.invoke('mods:importPaths', paths),
@@ -77,7 +81,10 @@ contextBridge.exposeInMainWorld('api', {
   cosmetics: {
     slots: () => ipcRenderer.invoke('cosmetics:slots'),
     icons: (names) => ipcRenderer.invoke('cosmetics:icons', names),
-    pick: (slot, itemId, itemName) => ipcRenderer.invoke('cosmetics:pick', slot, itemId, itemName),
+    heroPortraits: (ids) => ipcRenderer.invoke('cosmetics:heroPortraits', ids),
+    heroPortraitsByName: (names) => ipcRenderer.invoke('cosmetics:heroPortraitsByName', names),
+    pick: (slot, itemId, itemName, effectId) => ipcRenderer.invoke('cosmetics:pick', slot, itemId, itemName, effectId),
+    pickSet: (setId) => ipcRenderer.invoke('cosmetics:pickSet', setId),
   },
   // a mod's own video, and the still the window decodes out of it
   preview: {
@@ -113,6 +120,11 @@ contextBridge.exposeInMainWorld('api', {
   account: {
     signIn: () => ipcRenderer.invoke('account:signIn'),
     signOut: () => ipcRenderer.invoke('account:signOut'),
+  },
+  // the beta channel: shown only to an account the signed list names (src/beta.ts)
+  beta: {
+    state: () => ipcRenderer.invoke('beta:state'),
+    set: (on) => ipcRenderer.invoke('beta:set', on),
   },
   presence: {
     view: (name) => ipcRenderer.invoke('presence:view', name),

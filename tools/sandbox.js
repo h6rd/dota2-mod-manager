@@ -7,9 +7,10 @@
  *   node tools/sandbox.js seed     build the tree, download real mods, seed userData
  *   node tools/sandbox.js reset    restore the tree to pristine, wipe userData, keep mods
  *   node tools/sandbox.js status   what is on disk right now
+ *   node tools/sandbox.js pin      point the settings at the sandbox game (start:sandbox runs it)
  *
  * The layout mirrors a real Steam library, because the app derives things from it: the game
- * path ends in ...\dota 2 beta\game (src/steam.js) and src/gamelang.js walks three levels up
+ * path ends in ...\dota 2 beta\game (src/steam.ts) and src/gamelang.ts walks three levels up
  * looking for appmanifest_570.acf.
  *
  * Nothing here changes app code. The app is pointed at the sandbox purely through
@@ -21,8 +22,9 @@ const path = require('path');
 const crypto = require('crypto');
 const { crc32 } = require('zlib');
 
-const { readVpkEntryFile, buildVpk } = require('../src/vpk.js');
-const { Catalog, RAW_BASE } = require('../src/catalog.js');
+const { readVpkEntryFile, buildVpk } = require('../src/vpk.ts');
+const { Catalog, RAW_BASE } = require('../src/catalog.ts');
+const { pinGamePath } = require('./sandbox-pin.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const SANDBOX = path.join(ROOT, 'sandbox');
@@ -44,9 +46,10 @@ const mkdir = (p) => fs.mkdirSync(p, { recursive: true });
 
 // ---------- files the fake game needs ----------
 
-// Valve's own SearchPaths block. src/patcher.js reads this out of gameinfo.gi to build the
-// patched branch file, and the Game_Language line is what makes dota_<audio lang> mount at
-// all (measured 2026-07-30) - so it has to be verbatim, not paraphrased.
+// Valve's own SearchPaths block. src/patcher.ts reads this out of gameinfo.gi to build the
+// patched branch file, and the language line is what makes dota_<audio lang> mount at all
+// (measured 2026-07-30) - so it has to be verbatim, not paraphrased. Its key has been
+// Game_AudioLanguage since build 6946 (2026-10-07); the engine no longer reads Game_Language.
 const GAMEINFO = `"GameInfo"
 {
 	game 		"Dota 2"
@@ -60,7 +63,7 @@ const GAMEINFO = `"GameInfo"
 		{
 			// These are optional language paths. They must be mounted first, which is why there are first in the list.
 			// *LANGUAGE* will be replaced with the actual language name. If not running a specific language, these paths will not be mounted
-			Game_Language		dota_*LANGUAGE*
+			Game_AudioLanguage	dota_*LANGUAGE*
 
 			// These are optional low-violence paths. They will only get mounted if you're in a low-violence mode.
 			Game_LowViolence	dota_lv
@@ -72,7 +75,7 @@ const GAMEINFO = `"GameInfo"
 
 			Write				dota
 
-			AddonRoot_Language	dota_*LANGUAGE*_addons
+			AddonRoot_AudioLanguage	dota_*LANGUAGE*_addons
 
 			AddonRoot			dota_addons
 
@@ -100,7 +103,7 @@ const BRANCHSPECIFIC = `"GameInfo"
 }
 `;
 
-// Valve's shape for a language folder (mirrors gameinfoStub in src/gamelang.js).
+// Valve's shape for a language folder (mirrors gameinfoStub in src/gamelang.ts).
 const LANG_GAMEINFO = (suffix) => `"GameInfo"
 {
 	LayeredOnMod	dota
@@ -167,6 +170,68 @@ function signaturesFor(branchText) {
   ].join('\n');
 }
 
+/* What the item builder reads out of pak01 besides the table, copied from the real game so the
+ * sandbox can run it: every hero's two portraits (its hub shows them), and for a whole set
+ * (Blightfall, so "Equip the whole set" builds every piece) and one more wearable the model and
+ * particles it copies plus the effect particles it points at. A few MB. Only these, rather than
+ * the whole archive: the real one is tens of gigabytes. */
+const BUILDER_SAMPLE = [
+  'Blightfall - Head', 'Blightfall - Shoulder', 'Blightfall - Back', 'Blightfall - Weapon', 'Blightfall - Mount',
+  'Compendium Rider of Avarice Helmet',
+];
+
+function builderAssets(real, schemaText) {
+  const { openVpkIndex } = require('../src/vpk.ts');
+  const builder = require('../src/item-builder.ts');
+  const out = [];
+  try {
+    const ix = openVpkIndex(path.join(real, 'dota', 'pak01_dir.vpk'));
+    const want = new Set();
+    const slots = builder.itemSlots(schemaText);
+    for (const id of new Set(slots.flatMap((sl) => sl.heroIds))) {
+      want.add(`panorama/images/heroes/npc_dota_hero_${id}_png.vtex_c`);
+      want.add(`panorama/images/heroes/selection/npc_dota_hero_${id}_png.vtex_c`);
+    }
+    const compiled = (p) => { const c = String(p).toLowerCase().replace(/\\/g, '/'); return c.endsWith('_c') ? c : `${c}_c`; };
+    const effects = builder.itemEffects().map((fx) => fx.id);
+    for (const sl of slots) {
+      for (const o of sl.options.filter((x) => BUILDER_SAMPLE.includes(x.name))) {
+        for (const fx of effects) {
+          const built = builder.itemEffectPatch(schemaText, o.id, fx);
+          for (const m of built.block.matchAll(/"((?:models|particles|materials)\/[^"]+\.(?:vmdl|vpcf|vmat|vtex))"/gi)) want.add(compiled(m[1]));
+          for (const c of built.assetCopies) { want.add(compiled(c.from)); want.add(compiled(c.to)); }
+        }
+      }
+    }
+    for (const rel of want) {
+      const data = ix.read(rel);
+      if (data) out.push(entry(rel, data));
+    }
+  } catch (e) {
+    log('  could not copy the item builder\'s files:', e.message);
+  }
+  return out;
+}
+
+/* The chat file of every language the game ships, which src/notice-text.ts builds the
+ * anti-cheat notice on. Under half a kilobyte each. */
+function noticeAssets(real) {
+  const { openVpkIndex } = require('../src/vpk.ts');
+  const { DOTA_LANGUAGES } = require('../src/gamelang.ts');
+  const out = [];
+  try {
+    const ix = openVpkIndex(path.join(real, 'dota', 'pak01_dir.vpk'));
+    for (const lang of DOTA_LANGUAGES) {
+      const rel = `resource/localization/chat_${lang}.txt`;
+      const data = ix.read(rel);
+      if (data) out.push(entry(rel, data));
+    }
+  } catch (e) {
+    log('  could not copy the chat files:', e.message);
+  }
+  return out;
+}
+
 /** One inline-data VPK entry in the shape buildVpk() wants. */
 function entry(relPath, data) {
   const norm = relPath.replace(/\\/g, '/').toLowerCase();
@@ -185,7 +250,7 @@ function entry(relPath, data) {
 }
 
 // Minimal but structurally real items_game.txt, used only when the real game is not
-// installed. Enough for src/schema.js to parse, find an items block and patch a base item.
+// installed. Enough for src/schema.ts to parse, find an items block and patch a base item.
 const FALLBACK_SCHEMA = `"items_game"
 {
 	"items"
@@ -242,6 +307,12 @@ function buildGameTree() {
 
   take(['dota', 'gameinfo.gi'], GAMEINFO);
   take(['dota', 'gameinfo_branchspecific.gi'], BRANCHSPECIFIC);
+  /* The developer's own game may carry this app's search path (safe mode off there), and a copy
+     of it made a sandbox that started with our patch in place while its fresh settings said safe
+     mode was on: the simulation's game session found that on 2026-09-24. Valve ships the file
+     without it, so that is what the sandbox starts from. */
+  const branchFile = path.join(GAME, 'dota', 'gameinfo_branchspecific.gi');
+  fs.writeFileSync(branchFile, require('../src/patcher.ts').stripPatch(fs.readFileSync(branchFile, 'latin1')), 'latin1');
 
   /* The signature list, in the one place a real installation keeps one.
    *
@@ -275,11 +346,13 @@ function buildGameTree() {
       log('  could not read the real schema, using the stub:', e.message);
     }
   }
+  const extras = real && origin !== 'fallback stub' ? [...builderAssets(real, schema), ...noticeAssets(real)] : [];
   fs.writeFileSync(
     path.join(GAME, 'dota', 'pak01_dir.vpk'),
-    buildVpk([entry(SCHEMA_REL, Buffer.from(schema, 'latin1'))])
+    buildVpk([entry(SCHEMA_REL, Buffer.from(schema, 'latin1')), ...extras])
   );
   log(`  items_game.txt from ${origin}`);
+  if (extras.length) log(`  ${extras.length} files for the item builder and the anti-cheat notice (portraits, sample wearables, effects, chat files)`);
 
   // dota_russian: Valve's gameinfo plus stand-ins for the voice paks. langFolders() decides
   // "this folder holds Valve content" by the presence of pak01_*, and the 2.0 feature
@@ -383,8 +456,33 @@ async function downloadMods() {
 
 const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
+/* The Steam account the sandbox library belongs to.
+ *
+ * src/gamelang.ts takes -language from the launch options of whoever is logged in, looking first
+ * at the Steam root the game path implies (sandbox/ here) and, on Windows, going on to
+ * Program Files\Steam when that root has no account. With no account of its own, a sandbox run
+ * on a machine where Dota starts with -language dutch (Minify sets exactly that) installed into
+ * dota_dutch, and tools/e2e.mjs watched an empty dota_russian. An account whose launch options
+ * say nothing answers first and ends the search there, on every platform.
+ *
+ * Steam's userdata folder and the app's --user-data-dir are both sandbox/userdata. They share it
+ * without trouble: Electron writes nothing with a numeric name.
+ */
+const SANDBOX_STEAM_ID = '76561197972611406'; // 32-bit account 12345678
+const LOGINUSERS = `"users"\n{\n\t"${SANDBOX_STEAM_ID}"\n\t{\n\t\t"AccountName"\t\t"sandbox"\n\t\t"MostRecent"\t\t"1"\n\t\t"Timestamp"\t\t"1757894400"\n\t}\n}\n`;
+const LOCALCONFIG = '"UserLocalConfigStore"\n{\n\t"Software"\n\t{\n\t\t"Valve"\n\t\t{\n\t\t\t"Steam"\n\t\t\t{\n\t\t\t\t"apps"\n\t\t\t\t{\n\t\t\t\t\t"570"\n\t\t\t\t\t{\n\t\t\t\t\t\t"LaunchOptions"\t\t""\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}\n';
+
+function seedSteamAccount() {
+  const account = String(BigInt(SANDBOX_STEAM_ID) - 76561197960265728n);
+  mkdir(path.join(USERDATA, account, 'config'));
+  fs.writeFileSync(path.join(USERDATA, account, 'config', 'localconfig.vdf'), LOCALCONFIG);
+  mkdir(path.join(SANDBOX, 'config'));
+  fs.writeFileSync(path.join(SANDBOX, 'config', 'loginusers.vdf'), LOGINUSERS);
+}
+
 function seedUserData() {
   mkdir(USERDATA);
+  seedSteamAccount();
   // Pre-answered first run: game path found, mod folder pinned to the sandbox's own language
   // folder, language picker and "what's new" already seen. Without this every sandbox launch
   // would open on the first-run dialogs instead of the screen under test.
@@ -394,6 +492,11 @@ function seedUserData() {
     langSuffixAuto: true,
     uiLang: 'ru',
     langPromptSeen: true,
+    // the Source 2 Viewer offer; unanswered, it opened in front of every sandbox launch
+    toolsPromptSeen: true,
+    // the 18+ question (renderer/core/adult.ts), answered no, which shows what an unanswered one
+    // does; unanswered, it opened in front of every sandbox launch
+    showAdult: false,
     lastSeenVersion: require('../package.json').version,
     discordPresence: false,
     schemaPatch: false,
@@ -431,6 +534,15 @@ function reset() {
   log('reset: game tree restored, userData wiped, downloaded mods kept');
 }
 
+// the sandbox game, written into the settings before every start (tools/sandbox-pin.js says why)
+function pin() {
+  const refused = pinGamePath(USERDATA, GAME, log, require('../package.json').version);
+  if (refused) {
+    log(`refusing to start: ${refused}`);
+    process.exitCode = 1;
+  }
+}
+
 function status() {
   const count = (dir, re) => {
     try { return fs.readdirSync(dir).filter((f) => re.test(f)).length; } catch { return 0; }
@@ -439,7 +551,7 @@ function status() {
   if (!fs.existsSync(SANDBOX)) return;
   log('game      ', fs.existsSync(path.join(GAME, 'dota')) ? GAME : '(missing)');
   log('pristine  ', fs.existsSync(PRISTINE) ? 'yes' : 'no');
-  // pak01_* is Valve's voice-over, not a mod - same exclusion langFolders() in src/gamelang.js makes
+  // pak01_* is Valve's voice-over, not a mod - same exclusion langFolders() in src/gamelang.ts makes
   const isMod = (f) => /^pak\d+_dir\.vpk(\.off|\.moff)?$/i.test(f) && !/^pak01_/i.test(f);
   log('mods in dota_russian:', count(path.join(GAME, 'dota_russian'), { test: isMod }));
   log('downloaded mods:     ', count(MODS, /\.(vpk|zip)$/i));
@@ -447,9 +559,9 @@ function status() {
 }
 
 const cmd = process.argv[2] || 'status';
-const commands = { seed, reset, status };
+const commands = { seed, reset, status, pin };
 if (!commands[cmd]) {
-  log('usage: node tools/sandbox.js <seed|reset|status>');
+  log('usage: node tools/sandbox.js <seed|reset|status|pin>');
   process.exitCode = 1;
 } else {
   Promise.resolve(commands[cmd]()).catch((e) => {

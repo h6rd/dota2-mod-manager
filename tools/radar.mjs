@@ -18,6 +18,12 @@
  * The decisions are pure functions over plain data (evaluate, renderIssue, renderDiscord) and are
  * tested against fixtures in test/radar.test.js. The part that talks to GitHub is thin on purpose.
  *
+ * Two security lists stay out of reach. The workflow token cannot read Dependabot or secret
+ * scanning alerts: a dry run on 2026-09-16 got neither, and the credential registry refuses
+ * personal tokens. Vulnerable dependencies come from `npm audit` instead, which reads the same
+ * advisory database from the lockfile and needs no token. Leaked secrets have no substitute here:
+ * push protection refuses the known kinds at the door, and GitHub emails the owner about the rest.
+ *
  * Usage:
  *   GH_TOKEN=... node tools/radar.mjs            # update the issue, alert when overdue
  *   GH_TOKEN=... node tools/radar.mjs --dry      # print both, write nothing
@@ -25,11 +31,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 
 export const TITLE = 'Project status';
+/* The OpenSSF Best Practices entry this repository answers, see docs/openssf-answers.md. The
+   site fills a criterion whose answer is still a question mark from .bestpractices.json and
+   never touches one that is already saved, so the file and the entry drift apart silently and
+   the only sign is a percentage nobody is watching. */
+export const BADGE_PROJECT = 14721;
 export const MARK = '<!-- radar:v1 -->';
 
 /**
@@ -107,6 +119,21 @@ export function schedulesFrom(files) {
   return out;
 }
 
+/**
+ * Workflows that only start when a release is published. They never run on main, so the radar has
+ * to look at their last run wherever it happened, or a red one is invisible.
+ * @param {Array<{file: string, text: string}>} files
+ * @returns {string[]} the workflow paths
+ */
+export function releaseTriggered(files) {
+  return files
+    .filter(({ text }) => {
+      const on = String(text).split(/\n(?=[a-z])/).find((block) => block.startsWith('on:')) || '';
+      return /^ {2}release:/m.test(on);
+    })
+    .map(({ file }) => file);
+}
+
 export function lastGoneOver(decisionsText) {
   const m = /Last gone over on (\d{4}-\d{2}-\d{2})/.exec(decisionsText || '');
   return m ? m[1] : null;
@@ -129,10 +156,95 @@ export function waitingSince(issue, comments) {
 }
 
 /**
+ * The issues the incident write-ups answer: the `Issue` row in each file under docs/incidents/.
+ * @param {string[]} texts  the files' contents
+ * @returns {number[]}
+ */
+export function incidentIssues(texts) {
+  const named = new Set();
+  for (const text of texts) {
+    const row = text.match(/^\| Issue \| (.+) \|\s*$/m);
+    if (row) for (const m of row[1].matchAll(/#(\d+)/g)) named.add(Number(m[1]));
+  }
+  return [...named].sort((a, b) => a - b);
+}
+
+/**
+ * One entry per vulnerable package in an `npm audit --json` report (format 2), by name.
+ * @param {{vulnerabilities?: Record<string, any>}} report
+ * @returns {Array<{name: string, severity: string, direct: boolean, title: string|null, url: string|undefined, through: string[], fix: string|null}>}
+ */
+export function auditFindings(report) {
+  return Object.values((report && report.vulnerabilities) || {}).map((v) => {
+    const via = v.via || [];
+    // an advisory of its own is an object; a package that is only vulnerable through another names it
+    const advisory = via.find((x) => x && typeof x === 'object') || null;
+    const fix = v.fixAvailable;
+    return {
+      name: v.name,
+      severity: v.severity || 'unrated',
+      direct: Boolean(v.isDirect),
+      title: advisory ? advisory.title : null,
+      url: advisory ? advisory.url : undefined,
+      through: via.filter((x) => typeof x === 'string'),
+      fix: fix === true ? 'npm audit fix'
+        : fix && typeof fix === 'object' ? `${fix.name} ${fix.version}${fix.isSemVerMajor ? ', a major update' : ''}`
+          : null,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * What the branch rule on main enforces, set against what the repository says it should.
+ * @param {Array<{type: string, parameters?: any}>} rules  GET repos/:repo/rules/branches/main
+ * @param {string[]} listed  the "branch" list in .github/required-checks.json
+ * @returns {{missing: string[], extra: string[], codeScanning: boolean}}
+ */
+export function branchRuleGaps(rules, listed) {
+  const required = rules
+    .filter((r) => r.type === 'required_status_checks')
+    .flatMap((r) => ((r.parameters && r.parameters.required_status_checks) || []).map((c) => c.context));
+  const codeScanning = rules.some((r) => r.type === 'code_scanning'
+    && ((r.parameters && r.parameters.code_scanning_tools) || []).some((tool) => tool.tool === 'CodeQL'));
+  return {
+    missing: listed.filter((name) => !required.includes(name)),
+    extra: required.filter((name) => !listed.includes(name)),
+    codeScanning,
+  };
+}
+
+/**
  * The whole judgement. `data` is what the IO layer gathered; nothing here reads the network or
  * the clock except through `now`. Every item says whether it is overdue (`overdue: true`), which
  * is what decides whether the maintainer gets a message.
  */
+/**
+ * Where the badge entry and this repository disagree about their own answers.
+ *
+ * `behind` is a criterion this repository answers and the entry has not taken: the robot on the
+ * form fills blanks only, so an answer written here after somebody pressed it never arrives.
+ * `disagree` is worse and rarer: both sides have an answer and they are different, which means
+ * somebody edited one of them by hand.
+ *
+ * @param {object} answers  .bestpractices.json
+ * @param {object} entry    the project's JSON from bestpractices.dev
+ * @returns {{behind: string[], disagree: string[]}}
+ */
+export function badgeDrift(answers, entry) {
+  const behind = [];
+  const disagree = [];
+  for (const [key, ours] of Object.entries(answers || {})) {
+    if (!key.endsWith('_status')) continue;
+    const id = key.slice(0, -'_status'.length);
+    const theirs = (entry || {})[key];
+    // a criterion the entry does not carry at all belongs to a level nobody has opened yet
+    if (theirs === undefined) continue;
+    if (theirs === null || theirs === '' || theirs === '?') behind.push(id);
+    else if (theirs !== ours) disagree.push(`${id}: the entry says ${theirs}, this repository says ${ours}`);
+  }
+  return { behind: behind.sort(), disagree: disagree.sort() };
+}
+
 export function evaluate(data, now = Date.now(), policy = POLICY) {
   const r = { decide: [], red: [], expiring: [], look: [], fine: [] };
 
@@ -161,10 +273,36 @@ export function evaluate(data, now = Date.now(), policy = POLICY) {
   }
   if (!waiting) r.fine.push('No issue is waiting on a reply');
 
+  /* A regression is something that worked and stopped. Closing the issue fixes it once; the write-up
+     in docs/incidents/ says why nothing caught it and names what does now, and test/incidents.test.js
+     keeps those names true. A closed regression that no write-up names is a job left half done. */
+  const written = new Set(data.incidentIssues || []);
+  let unwritten = 0;
+  for (const issue of data.regressions || []) {
+    if (issue.state !== 'closed' || written.has(issue.number)) continue;
+    unwritten++;
+    const h = hoursSince(issue.closed_at, now);
+    r.decide.push({
+      title: `Regression #${issue.number} has no incident write-up: ${issue.title}`,
+      url: issue.html_url,
+      detail: `closed ${fmtAge(h)} ago; add a file to docs/incidents/ with #${issue.number} in its Issue row`,
+      overdue: h > policy.waitingDays * 24,
+    });
+  }
+  if ((data.regressions || []).length && !unwritten) r.fine.push('Every closed regression has an incident write-up');
+
   if (data.codeScanning === 'unreadable') {
     r.look.push({ title: 'Code scanning alerts could not be read', detail: 'the workflow token needs security-events: read', overdue: false });
   } else {
-    for (const a of data.codeScanning || []) {
+    /* Scorecard reports into the same list as CodeQL, but its findings are about how the project
+       is run, and several describe work with a plan rather than a mistake to fix this week: no
+       fuzzing, no paid signing certificate. One overdue decision each would turn the radar red
+       every morning for things nobody can close by Friday, and a radar that is always red is not
+       read. So they are counted on one line, and every other tool's alert stays a decision. */
+    const all = data.codeScanning || [];
+    const scorecard = all.filter((a) => a.tool && /scorecard/i.test(a.tool.name || ''));
+    const alerts = all.filter((a) => !scorecard.includes(a));
+    for (const a of alerts) {
       const h = hoursSince(a.created_at, now);
       const where = a.most_recent_instance && a.most_recent_instance.location ? a.most_recent_instance.location.path : 'unknown file';
       r.decide.push({
@@ -174,7 +312,95 @@ export function evaluate(data, now = Date.now(), policy = POLICY) {
         overdue: h > policy.waitingDays * 24,
       });
     }
-    if (!(data.codeScanning || []).length) r.fine.push('No open code scanning alerts');
+    if (!alerts.length) r.fine.push('No open code scanning alerts');
+    if (scorecard.length) {
+      const checks = [...new Set(scorecard.map((a) => (a.rule && a.rule.id) || 'unknown'))].sort();
+      r.look.push({
+        title: `Scorecard has ${scorecard.length} open finding${scorecard.length === 1 ? '' : 's'}`,
+        url: data.scorecardUrl,
+        detail: checks.join(', '),
+        overdue: false,
+      });
+    }
+  }
+
+  /* The badge questionnaire against the file this repository keeps it in. Nothing here is red:
+     an entry a couple of answers behind is a form nobody pressed Save on, not an outage. */
+  if (data.badge === 'unreadable') {
+    r.look.push({ title: 'The OpenSSF badge entry could not be read', detail: 'bestpractices.dev did not answer', overdue: false });
+  } else if (data.badge) {
+    const drift = badgeDrift(data.answers, data.badge);
+    const url = `https://www.bestpractices.dev/en/projects/${BADGE_PROJECT}`;
+    if (drift.behind.length) {
+      r.decide.push({
+        title: `${drift.behind.length} answer${drift.behind.length === 1 ? '' : 's'} in .bestpractices.json ${drift.behind.length === 1 ? 'is' : 'are'} not on the badge entry`,
+        url: `${url}/edit`,
+        detail: `${drift.behind.join(', ')}: open the form and press "Save (and continue)" with the robot, which fills answers the entry does not have`,
+        overdue: false,
+      });
+    }
+    if (drift.disagree.length) {
+      r.decide.push({
+        title: `The badge entry and this repository disagree about ${drift.disagree.length} criteri${drift.disagree.length === 1 ? 'on' : 'a'}`,
+        url: `${url}/edit`,
+        detail: `${drift.disagree.join('; ')}: the robot never overwrites a saved answer, so one of the two was edited by hand`,
+        overdue: false,
+      });
+    }
+    if (!drift.behind.length && !drift.disagree.length) {
+      const level = data.badge.badge_level || 'none';
+      const silver = data.badge.badge_percentage_1;
+      r.fine.push(`Badge entry matches this repository: ${level}${typeof silver === 'number' ? `, silver at ${silver}%` : ''}`);
+    }
+  }
+
+  /* Known vulnerabilities in what the app and the site install, from npm audit (the top of this
+     file says why not from Dependabot's list). A report carries no dates, so nothing here goes
+     overdue on its own: Dependabot opens a pull request for anything with a fixed version, and
+     that pull request is listed above with its own clock. What stays here is a decision. */
+  for (const [where, report] of Object.entries(data.audit || {})) {
+    if (report === 'unreadable') {
+      r.look.push({ title: `npm audit could not run for the ${where}`, detail: 'the registry did not answer, or the lockfile is missing', overdue: false });
+      continue;
+    }
+    const found = auditFindings(report);
+    const minor = found.filter((f) => f.severity === 'low' || f.severity === 'info');
+    for (const f of found.filter((x) => !minor.includes(x))) {
+      const what = f.title || `through ${f.through.join(', ')}`;
+      r.decide.push({
+        title: `${f.name} has a ${f.severity} vulnerability (${where})`,
+        url: f.url,
+        detail: `${what}; ${f.direct ? 'a direct dependency' : 'pulled in by another package'}; ${f.fix ? `fixed by ${f.fix}` : 'no fixed version yet'}`,
+        overdue: false,
+      });
+    }
+    if (minor.length) {
+      r.look.push({ title: `${minor.length} low-severity advisor${minor.length === 1 ? 'y' : 'ies'} in the ${where}`, detail: minor.map((f) => f.name).join(', '), overdue: false });
+    }
+    if (!found.length) r.fine.push(`npm audit finds nothing in the ${where}`);
+  }
+
+  /* The branch rule is GitHub's copy of .github/required-checks.json, and nothing held the two
+     together: a check dropped from the rule stops blocking merges without a word. The rule also
+     said nothing about what CodeQL finds, only that it ran, so on 2026-09-16 pull request #62
+     merged with a new high-severity alert and its fix landed on a branch nobody would merge. */
+  if (data.branchRules === 'unreadable') {
+    r.look.push({ title: 'The branch rule on main could not be read', detail: 'GET rules/branches/main did not answer', overdue: false });
+  } else if (Array.isArray(data.branchRules)) {
+    const gaps = branchRuleGaps(data.branchRules, data.requiredChecks || []);
+    const checks = (n) => `${n} check${n === 1 ? '' : 's'}`;
+    if (gaps.missing.length) {
+      r.red.push({ title: `main merges without ${checks(gaps.missing.length)} the repository requires`, url: data.rulesUrl, detail: `${gaps.missing.join(', ')}: add them to the main ruleset`, overdue: true });
+    }
+    if (gaps.extra.length) {
+      r.red.push({ title: `main waits for ${checks(gaps.extra.length)} the repository does not list`, url: data.rulesUrl, detail: `${gaps.extra.join(', ')}: no job reports it, so no pull request can merge`, overdue: true });
+    }
+    if (!gaps.codeScanning) {
+      r.decide.push({ title: 'main merges pull requests that add high-severity code scanning alerts', url: data.rulesUrl, detail: 'add "Require code scanning results" to the main ruleset: CodeQL, security alerts High or higher', overdue: false });
+    }
+    if (!gaps.missing.length && !gaps.extra.length) {
+      r.fine.push(`main requires the ${checks((data.requiredChecks || []).length)} the repository lists${gaps.codeScanning ? ', and a CodeQL result with no new high alert' : ''}`);
+    }
   }
 
   if (data.privateReporting === false) {
@@ -190,7 +416,20 @@ export function evaluate(data, now = Date.now(), policy = POLICY) {
       continue;
     }
     if (w.lastRun && w.lastRun.conclusion === 'failure') {
-      r.red.push({ title: `${w.name} failed on main`, url: w.lastRun.url, detail: `last run ${String(w.lastRun.created_at).slice(0, 10)}`, overdue: true });
+      const where = w.lastRun.branch && w.lastRun.branch !== 'main' ? ` on ${w.lastRun.branch}` : ' on main';
+      r.red.push({ title: `${w.name} failed${where}`, url: w.lastRun.url, detail: `last run ${String(w.lastRun.created_at).slice(0, 10)}`, overdue: true });
+    }
+    /* A workflow nothing schedules is only ever started by something else, and when that
+       something is an event GitHub refuses to raise (a release published by a workflow token, for
+       one) the file sits active and correct and never runs. Nothing above notices: it has no
+       schedule to be late for and no failed run to report. */
+    if (!w.intervalHours && w.onRelease && !w.lastRun) {
+      r.red.push({
+        title: `${w.name} has never run, and it is meant to run on a release`,
+        url: w.url,
+        detail: 'a release published by a workflow raises no event: start it by name from release.yml',
+        overdue: true,
+      });
     }
     if (w.intervalHours) {
       /* GitHub starts scheduled runs when it can, not when the cron says: in September 2026 the
@@ -226,7 +465,12 @@ export function evaluate(data, now = Date.now(), policy = POLICY) {
       continue;
     }
     if (check && check.state === 'missing') {
-      r.red.push({ title: `${name} is not set`, detail: `${s.what}. To set it: ${s.rotate}`, overdue: true });
+      /* A secret marked optional in the registry is one the job that reads it can do without: it
+         says so and skips. That is a decision for whoever can create the key, not a breakage to
+         be messaged about every morning until they do. */
+      const line = { title: `${name} is not set`, detail: `${s.what}. To set it: ${s.rotate}`, overdue: !s.optional };
+      if (s.optional) r.decide.push({ ...line, title: `${name} is not set, and the job that reads it skips` });
+      else r.red.push(line);
       continue;
     }
     if (check && check.state === 'ok') working++;
@@ -345,14 +589,34 @@ async function api(pathname, { method = 'GET', body, token, allow = [] } = {}) {
   return res.status === 204 ? {} : res.json();
 }
 
+/** npm audit from the lockfile alone: nothing installed, no token. 'unreadable' when npm could not answer. */
+function audit(dir) {
+  const args = ['audit', '--json', '--package-lock-only'];
+  // npm is npm.cmd on Windows, which Node starts only through a shell, and a shell takes one string
+  const run = process.platform === 'win32'
+    ? spawnSync(`npm ${args.join(' ')}`, { cwd: dir, encoding: 'utf8', shell: true })
+    : spawnSync('npm', args, { cwd: dir, encoding: 'utf8' });
+  try {
+    const report = JSON.parse(run.stdout);
+    return report && report.vulnerabilities ? report : 'unreadable';
+  } catch {
+    return 'unreadable';
+  }
+}
+
 async function gather(repo, token, now) {
   const files = fs.readdirSync(path.join(root, '.github', 'workflows'))
     .filter((f) => /\.ya?ml$/.test(f))
     .map((f) => ({ file: `.github/workflows/${f}`, text: fs.readFileSync(path.join(root, '.github', 'workflows', f), 'utf8') }));
   const schedules = new Map(schedulesFrom(files).map((s) => [s.file, s.intervalHours]));
+  const onRelease = new Set(releaseTriggered(files));
 
   const pulls = await api(`repos/${repo}/pulls?state=open&per_page=100`, { token });
   const openIssues = (await api(`repos/${repo}/issues?state=open&per_page=100`, { token })).filter((i) => !i.pull_request);
+  const rules = await api(`repos/${repo}/rules/branches/main`, { token, allow: [403, 404] });
+  const regressions = (await api(`repos/${repo}/issues?labels=regression&state=all&per_page=100`, { token })).filter((i) => !i.pull_request);
+  const incidentsDir = path.join(root, 'docs', 'incidents');
+  const incidentTexts = fs.readdirSync(incidentsDir).filter((f) => f.endsWith('.md')).map((f) => fs.readFileSync(path.join(incidentsDir, f), 'utf8'));
 
   const issues = [];
   let searchIssue = null;
@@ -371,6 +635,17 @@ async function gather(repo, token, now) {
     searchReportAt = reports.length ? reports[reports.length - 1].created_at : null;
   }
 
+  /* The badge entry, from the site rather than from GitHub: no token, and a failure is a line to
+     look at rather than a run that dies. */
+  let badge = 'unreadable';
+  try {
+    const res = await fetch(`https://www.bestpractices.dev/projects/${BADGE_PROJECT}.json`, {
+      headers: { 'User-Agent': 'dota2-mod-manager-radar' },
+    });
+    if (res.ok) badge = await res.json();
+  } catch { /* offline, or the site is down: the line says so */ }
+  const answers = JSON.parse(fs.readFileSync(path.join(root, '.bestpractices.json'), 'utf8'));
+
   const scanning = await api(`repos/${repo}/code-scanning/alerts?state=open&per_page=100`, { token, allow: [403, 404] });
   const codeScanning = Array.isArray(scanning) ? scanning : 'unreadable';
 
@@ -382,14 +657,20 @@ async function gather(repo, token, now) {
   for (const w of listed.workflows || []) {
     if (!w.path || !w.path.startsWith('.github/workflows/')) continue; // Dependabot and Pages run as dynamic workflows
     const runs = await api(`repos/${repo}/actions/workflows/${w.id}/runs?branch=main&status=completed&per_page=1`, { token });
-    const last = (runs.workflow_runs || [])[0];
+    let last = (runs.workflow_runs || [])[0];
+    if (!last && onRelease.has(w.path)) {
+      // published from a tag, so nothing of it is ever on main
+      const any = await api(`repos/${repo}/actions/workflows/${w.id}/runs?status=completed&per_page=1`, { token });
+      last = (any.workflow_runs || [])[0];
+    }
     workflows.push({
       name: w.name,
       state: w.state,
       url: w.html_url,
       intervalHours: schedules.get(w.path) || null,
+      onRelease: onRelease.has(w.path),
       created_at: w.created_at,
-      lastRun: last ? { conclusion: last.conclusion, created_at: last.created_at, url: last.html_url } : null,
+      lastRun: last ? { conclusion: last.conclusion, created_at: last.created_at, url: last.html_url, branch: last.head_branch } : null,
     });
   }
 
@@ -412,7 +693,16 @@ async function gather(repo, token, now) {
     data: {
       pulls,
       issues,
+      regressions,
+      incidentIssues: incidentIssues(incidentTexts),
+      branchRules: Array.isArray(rules) ? rules : 'unreadable',
+      requiredChecks: JSON.parse(fs.readFileSync(path.join(root, '.github', 'required-checks.json'), 'utf8')).branch,
+      rulesUrl: `https://github.com/${repo}/settings/rules`,
       codeScanning,
+      audit: { app: audit(root), site: audit(path.join(root, 'site')) },
+      scorecardUrl: `https://github.com/${repo}/security/code-scanning?query=tool%3AScorecard+is%3Aopen`,
+      badge,
+      answers,
       privateReporting: typeof pvr.enabled === 'boolean' ? pvr.enabled : undefined,
       securitySettingsUrl: `https://github.com/${repo}/settings/security_analysis`,
       communityHealth: community.health_percentage,
@@ -432,7 +722,7 @@ async function gather(repo, token, now) {
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
   const dry = process.argv.includes('--dry');
-  const repo = process.env.GITHUB_REPOSITORY || 'TheFleece/dota2-mod-manager';
+  const repo = process.env.GITHUB_REPOSITORY || 'dota2modmanager/dota2-mod-manager';
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '';
   const now = Date.now();
   const { radarIssue, data } = await gather(repo, token, now);

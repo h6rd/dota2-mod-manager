@@ -2,7 +2,8 @@ name: Radar
 
 # Once a day, everything that is waiting on a person, in one pinned issue called "Project status".
 #
-# Pull requests and issues nobody has answered, open security alerts, workflows that are red or
+# Pull requests and issues nobody has answered, open code scanning alerts, known vulnerabilities in
+# what the app and the site install (npm audit, from the lockfiles), workflows that are red or
 # have gone quiet, secrets about to expire, a weekly report that did not arrive. The issue body is
 # rewritten each run rather than commented on, so it always reads as today and never piles up.
 # When something has waited longer than CONTRIBUTING.md and SECURITY.md promise, the maintainer
@@ -18,13 +19,9 @@ on:
         type: boolean
         default: false
 
-# Read everything it reports on, write one issue. Nothing here pushes, labels or closes.
+# The token reads the repository and nothing more. The job below asks for what it reports on.
 permissions:
   contents: read
-  issues: write
-  pull-requests: read
-  actions: read
-  security-events: read
 
 concurrency:
   group: radar
@@ -33,6 +30,13 @@ concurrency:
 jobs:
   radar:
     runs-on: ubuntu-latest
+    # Read everything it reports on, write one issue. Nothing here pushes, labels or closes.
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+      actions: read
+      security-events: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -57,6 +61,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           YANDEX_OAUTH_TOKEN: ${{ secrets.YANDEX_OAUTH_TOKEN }}
           FINGERPRINTS_DEPLOY_KEY: ${{ secrets.FINGERPRINTS_DEPLOY_KEY }}
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
         run: node tools/check-credentials.mjs
 
       # The webhook address is a credential. The script never prints it, including in an error.

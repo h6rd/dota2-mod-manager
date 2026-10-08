@@ -769,6 +769,8 @@ section { padding: 44px 0; }
 .foot-legal p { max-width: 82ch; font-size: 13px; line-height: 1.6; color: var(--text-dim); }
 .foot-links { margin-left: auto; display: flex; gap: 20px; }
 @media (max-width: 720px) { .foot-links { margin-left: 0; } }
+/* the policies, under the paragraphs they belong with, spaced like the links above */
+.foot-legal .foot-policies { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 10px; }
 
 /* The name once more, at the size of the page and almost out of sight.
  *
@@ -813,6 +815,25 @@ section { padding: 44px 0; }
   /* a long Windows path must be allowed to break, or it pushes the column sideways */
   word-break: break-word;
 }
+
+/* Tables, which only the documents built from the repository carry (PRIVACY.md lists every host
+   the app contacts and every file it keeps). The same border and surface as the code chips above,
+   and a table that scrolls sideways on a phone rather than pushing the column out. */
+.doc table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1.4em 0;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.doc th, .doc td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.doc th { background: var(--surface-container); color: var(--text); font-weight: 600; }
 
 .crumbs { font-size: 14px; margin-bottom: 18px; }
 .crumbs a { color: var(--text-faint); }

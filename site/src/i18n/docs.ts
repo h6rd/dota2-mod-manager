@@ -196,7 +196,7 @@ const en: Record<CoreSlug, Doc> = {
         t: 'If you did download that voice pack and want the English speech back, rename Valve\'s <code>pak01_dir.vpk</code> inside the folder. Only the index has to move: the numbered volumes beside it are unreadable without it, so you rename a few hundred kilobytes and leave the gigabytes where they are. Rename it back to undo, or verify the game files in Steam.',
       },
 
-      { k: 'h2', t: 'Free cosmetics take one more step', id: 'schema' },
+      { k: 'h2', t: 'A look on a default item takes one more step', id: 'schema' },
       {
         k: 'p',
         t: 'A mod in a language folder can replace any ordinary asset and never the item list. Dota resolves its MOD search path to <code>game\\dota</code> alone, so <code>scripts/items/items_game.txt</code> stays out of reach from there. Unlocking couriers, wards or announcers means registering a second content folder in <code>gameinfo_branchspecific.gi</code> and writing the patched file\'s hash into <code>dota.signatures</code>, which the client verifies when it starts. <a href="~/docs/cosmetics/">How the item table works</a>.',
@@ -363,19 +363,24 @@ const en: Record<CoreSlug, Doc> = {
       },
       {
         k: 'p',
-        t: 'Where this app sits: skins never need the second mechanism, and the app installs them without it. The schema patch runs only for free cosmetics, it copies both Valve files before its first write and puts them back byte for byte when you undo it, and the code that does it is <a href="https://github.com/TheFleece/dota2-mod-manager/blob/main/src/patcher.js" rel="noopener">one file of four hundred lines</a> that you can read end to end, rather than something you have to take on faith. Whether that is enough is your call to make, and the rest of the app works with it switched off.',
+        t: 'Where this app sits: skins never need the second mechanism, and the app installs them without it. The schema patch runs only for putting a look on a default item, it copies both Valve files before its first write and puts them back byte for byte when you undo it, and the code that does it is <a href="https://github.com/dota2modmanager/dota2-mod-manager/blob/main/src/patcher.ts" rel="noopener">one file of four hundred lines</a> that you can read end to end, rather than something you have to take on faith. Whether that is enough is your call to make, and the rest of the app works with it switched off.',
       },
 
       { k: 'h2', t: 'Will you get banned', id: 'ban' },
       {
         k: 'p',
-        t: 'Nobody honest promises you anything here. Valve has never published a rule that names cosmetic mods, VAC looks for code injected into the game process rather than files sitting in the game folder, and people have run these mods for over eight years. That is the evidence. It is not a guarantee, and you install them at your own risk, the same as every other Dota mod.',
+        t: 'Bans are for cheats, and cosmetic mods are not cheats. <a href="https://store.steampowered.com/subscriber_agreement/" rel="noopener">Steam\'s own terms</a> define a cheat as software that gives you an unfair advantage in a game. A mod changes only how the game looks on your screen: your opponents do not see it, and it gives you no advantage. Dota 2 Mod Manager does not inject code into the game, does not touch its memory and does nothing on your behalf, and any mod comes off in one click. In the eight years people have been installing these mods, we know of no ban for them.',
+      },
+      {
+        k: 'p',
+        t: '<small>We are not affiliated with Valve and do not answer for its decisions. Steam\'s terms do not formally permit changing game files without Valve\'s consent, and Valve can change how it applies them.</small>',
       },
       {
         k: 'list',
         items: [
           'Your Steam inventory stays as it is. Nothing here trades, buys or unlocks an item on Valve\'s side.',
           'Turning mods off before a tournament match or a client update costs you one click and removes the question.',
+          'If the game says before a match that it could not verify your machine, that is not a ban. The app gives that window a text that says what usually fixes it: verify the game files in Steam, restart Steam, and turn mods off with the <b>Mods</b> switch.',
           'Any tool asking for your Steam login is not a mod manager. Nothing about installing a file needs your account.',
         ],
       },
@@ -406,7 +411,7 @@ const en: Record<CoreSlug, Doc> = {
       },
       {
         k: 'p',
-        t: 'This one is GPL-3.0, built from that source by GitHub Actions, and every release since the first is still on the releases page. <a href="https://github.com/TheFleece/dota2-mod-manager" rel="noopener">Read it</a> before you run it.',
+        t: 'This one is GPL-3.0, built from that source by GitHub Actions, and every release since the first is still on the releases page. <a href="https://github.com/dota2modmanager/dota2-mod-manager" rel="noopener">Read it</a> before you run it.',
       },
 
       { k: 'h2', t: 'Questions', id: 'faq' },
@@ -419,7 +424,7 @@ const en: Record<CoreSlug, Doc> = {
           ],
           [
             'Has anyone been banned for cosmetic mods?',
-            'No case has been reported and confirmed in the years these mods have existed. Absence of reports is weaker than a rule from Valve, and Valve has published no rule either way.',
+            'Not that we know of, in the eight years these mods have existed. Valve bans for cheats, and a cosmetic mod gives no advantage.',
           ],
           [
             'Can I use mods in ranked?',
@@ -526,7 +531,7 @@ const en: Record<CoreSlug, Doc> = {
       { k: 'h2', t: 'Everything vanished after a game update', id: 'patch' },
       {
         k: 'p',
-        t: 'A Dota patch can rewrite <code>gameinfo_branchspecific.gi</code> and <code>dota.signatures</code>, and it can clear files out of the language folder. Free cosmetics go first, because they depend on both of those files, and skins follow when the folder gets swept.',
+        t: 'A Dota patch can rewrite <code>gameinfo_branchspecific.gi</code> and <code>dota.signatures</code>, and it can clear files out of the language folder. The looks on default items go first, because they depend on both of those files, and skins follow when the folder gets swept.',
       },
       {
         k: 'p',
@@ -692,7 +697,7 @@ const ru: Record<CoreSlug, Doc> = {
         t: 'Если озвучка всё-таки скачана, а английская речь нужна, переименуй валвовский <code>pak01_dir.vpk</code> внутри папки. Двигать надо только индекс: нумерованные тома рядом без него не читаются, так что ты переименовываешь несколько сотен килобайт и не трогаешь гигабайты. Обратно - тем же переименованием или проверкой целостности файлов в Steam.',
       },
 
-      { k: 'h2', t: 'Бесплатной косметике нужен ещё один шаг', id: 'schema' },
+      { k: 'h2', t: 'Виду для стандартного предмета нужен ещё один шаг', id: 'schema' },
       {
         k: 'p',
         t: 'Мод в языковой папке заменит любой обычный ассет и никогда - список предметов. Дота разрешает свой путь поиска MOD только в <code>game\\dota</code>, поэтому <code>scripts/items/items_game.txt</code> оттуда недосягаем. Чтобы открыть курьеров, варды или комментаторов, надо зарегистрировать вторую папку контента в <code>gameinfo_branchspecific.gi</code> и вписать хеш пропатченного файла в <code>dota.signatures</code>, который клиент проверяет при запуске. <a href="~/docs/cosmetics/">Как устроена таблица предметов</a>.',
@@ -859,19 +864,24 @@ const ru: Record<CoreSlug, Doc> = {
       },
       {
         k: 'p',
-        t: 'Где в этой картине приложение: скинам второй механизм не нужен вообще, и оно ставит их без него. Патч схемы работает только ради бесплатной косметики, оба валвовских файла копируются до первой записи и возвращаются побайтово при откате, а код, который это делает, - <a href="https://github.com/TheFleece/dota2-mod-manager/blob/main/src/patcher.js" rel="noopener">один файл на четыреста строк</a>, который читается целиком, а не то, что приходится принимать на веру. Достаточно этого или нет, решаешь ты, и всё остальное работает с выключенным патчем.',
+        t: 'Где в этой картине приложение: скинам второй механизм не нужен вообще, и оно ставит их без него. Патч схемы работает только ради видов для стандартных предметов, оба валвовских файла копируются до первой записи и возвращаются побайтово при откате, а код, который это делает, - <a href="https://github.com/dota2modmanager/dota2-mod-manager/blob/main/src/patcher.ts" rel="noopener">один файл на четыреста строк</a>, который читается целиком, а не то, что приходится принимать на веру. Достаточно этого или нет, решаешь ты, и всё остальное работает с выключенным патчем.',
       },
 
       { k: 'h2', t: 'Забанят ли за моды в Доте 2', id: 'ban' },
       {
         k: 'p',
-        t: 'Гарантий тут честно не даёт никто. Valve никогда не публиковала правила, которое называет косметические моды; VAC ищет код, внедрённый в процесс игры, а не файлы, лежащие в папке; люди ставят такие моды больше восьми лет. Это все имеющиеся доводы. Гарантией они не являются, и ставишь ты их на свой страх и риск, как и любые другие моды для Доты.',
+        t: 'Банят за читы, а косметические моды не читы. По <a href="https://store.steampowered.com/subscriber_agreement/" rel="noopener">правилам Steam</a> чит - это программа, которая даёт нечестное преимущество в игре. Мод меняет только то, как игра выглядит на твоём экране: соперники его не видят, преимущества он не даёт. Dota 2 Mod Manager не внедряет код в игру, не трогает её память и ничего не делает за тебя, а любой мод снимается одним кликом. За восемь лет, что люди ставят такие моды, мы не знаем ни одного бана за них.',
+      },
+      {
+        k: 'p',
+        t: '<small>Мы не связаны с Valve и не отвечаем за её решения. Правила Steam в общем виде не разрешают менять файлы игры без согласия Valve, и Valve может изменить то, как их применяет.</small>',
       },
       {
         k: 'list',
         items: [
           'Инвентарь Steam остаётся как был. Ничего здесь не торгует, не покупает и не открывает предмет на стороне Valve.',
           'Выключить моды перед турнирным матчем или обновлением клиента стоит одного клика и снимает вопрос.',
+          'Если перед матчем игра пишет, что не смогла проверить компьютер, это не бан. Программа заменяет текст этого окна тем, что обычно помогает: проверь целостность файлов в Steam, перезапусти Steam и выключи моды переключателем <b>Моды</b>.',
           'Любой инструмент, просящий логин Steam, - не менеджер модов. Установке файла твой аккаунт не нужен.',
         ],
       },
@@ -902,7 +912,7 @@ const ru: Record<CoreSlug, Doc> = {
       },
       {
         k: 'p',
-        t: 'Этот - под GPL-3.0, собран из своих же исходников через GitHub Actions, и каждый релиз с самого первого до сих пор лежит на странице релизов. <a href="https://github.com/TheFleece/dota2-mod-manager" rel="noopener">Прочитай</a>, прежде чем запускать.',
+        t: 'Этот - под GPL-3.0, собран из своих же исходников через GitHub Actions, и каждый релиз с самого первого до сих пор лежит на странице релизов. <a href="https://github.com/dota2modmanager/dota2-mod-manager" rel="noopener">Прочитай</a>, прежде чем запускать.',
       },
 
       { k: 'h2', t: 'Вопросы', id: 'faq' },
@@ -915,7 +925,7 @@ const ru: Record<CoreSlug, Doc> = {
           ],
           [
             'Кого-нибудь банили за косметические моды?',
-            'Подтверждённых случаев за все годы существования этих модов нет. Отсутствие сообщений слабее правила от Valve, а правила Valve не публиковала ни в ту, ни в другую сторону.',
+            'Мы не знаем ни одного случая за восемь лет, что существуют эти моды. Valve банит за читы, а косметический мод не даёт преимущества.',
           ],
           [
             'Можно с модами в ранкед?',
@@ -1022,7 +1032,7 @@ const ru: Record<CoreSlug, Doc> = {
       { k: 'h2', t: 'Моды пропали после патча Доты', id: 'patch' },
       {
         k: 'p',
-        t: 'Патч Доты может переписать <code>gameinfo_branchspecific.gi</code> и <code>dota.signatures</code>, а ещё вычистить файлы из языковой папки. Первой отваливается бесплатная косметика, потому что держится на обоих этих файлах, а следом скины, когда подметают папку.',
+        t: 'Патч Доты может переписать <code>gameinfo_branchspecific.gi</code> и <code>dota.signatures</code>, а ещё вычистить файлы из языковой папки. Первыми отваливаются виды для стандартных предметов, потому что держатся на обоих этих файлах, а следом скины, когда подметают папку.',
       },
       {
         k: 'p',

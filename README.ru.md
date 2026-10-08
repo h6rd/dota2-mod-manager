@@ -8,20 +8,29 @@
 </p>
 
 <p>
-  <a href="https://github.com/TheFleece/dota2-mod-manager/releases/latest/download/Dota-2-Mod-Manager-Setup.exe">
-    <img src="https://img.shields.io/github/v/release/TheFleece/dota2-mod-manager?style=for-the-badge&color=8b6ff0&label=%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&logo=github&logoColor=white" alt="Скачать последнюю версию"></a>
-  <img src="https://img.shields.io/github/downloads/TheFleece/dota2-mod-manager/Dota-2-Mod-Manager-Setup.exe?style=for-the-badge&color=4f378b&label=%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BE%D0%BA" alt="Загрузок установщика">
+  <a href="https://github.com/dota2modmanager/dota2-mod-manager/releases/latest/download/Dota-2-Mod-Manager-Setup.exe">
+    <img src="https://img.shields.io/github/v/release/dota2modmanager/dota2-mod-manager?style=for-the-badge&color=8b6ff0&label=%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&logo=github&logoColor=white" alt="Скачать последнюю версию"></a>
+  <img src="https://img.shields.io/github/downloads/dota2modmanager/dota2-mod-manager/Dota-2-Mod-Manager-Setup.exe?style=for-the-badge&color=4f378b&label=%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BE%D0%BA" alt="Загрузок установщика">
   <img src="https://img.shields.io/badge/Windows%20%7C%20Linux-211f26?style=for-the-badge&logo=windows&logoColor=d0bcff" alt="Windows и Linux">
 </p>
 
 <p>
-  <a href="https://github.com/TheFleece/dota2-mod-manager/actions/workflows/test.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/TheFleece/dota2-mod-manager/test.yml?style=flat-square&label=%D1%82%D0%B5%D1%81%D1%82%D1%8B&labelColor=211f26&color=2bffa3" alt="Статус тестов"></a>
-  <a href="https://github.com/TheFleece/dota2-mod-manager/actions/workflows/codeql.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/TheFleece/dota2-mod-manager/codeql.yml?style=flat-square&label=codeql&labelColor=211f26&color=2bffa3" alt="Статус CodeQL"></a>
-  <img src="https://img.shields.io/github/last-commit/TheFleece/dota2-mod-manager?style=flat-square&label=%D0%BF%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B9%20%D0%BA%D0%BE%D0%BC%D0%BC%D0%B8%D1%82&labelColor=211f26&color=8b6ff0" alt="Последний коммит">
+  <a href="https://github.com/dota2modmanager/dota2-mod-manager/actions/workflows/test.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/dota2modmanager/dota2-mod-manager/test.yml?style=flat-square&label=%D1%82%D0%B5%D1%81%D1%82%D1%8B&labelColor=211f26&color=2bffa3" alt="Статус тестов"></a>
+  <a href="https://github.com/dota2modmanager/dota2-mod-manager/actions/workflows/codeql.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/dota2modmanager/dota2-mod-manager/codeql.yml?style=flat-square&label=codeql&labelColor=211f26&color=2bffa3" alt="Статус CodeQL"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/dota2modmanager/dota2-mod-manager">
+    <img src="https://img.shields.io/ossf-scorecard/github.com/dota2modmanager/dota2-mod-manager?style=flat-square&label=openssf%20scorecard&labelColor=211f26" alt="Оценка OpenSSF Scorecard"></a>
+  <a href="https://www.bestpractices.dev/en/projects/14721">
+    <img src="https://img.shields.io/cii/level/14721?style=flat-square&label=openssf%20best%20practices&labelColor=211f26&color=2bffa3" alt="Значок OpenSSF Best Practices, уровень silver"></a>
+  <a href="https://dota2modmanager.betteruptime.com">
+    <img src="https://uptime.betterstack.com/status-badges/v1/monitor/2y6jv.svg" alt="Статус фида обновлений"></a>
+  <img src="https://img.shields.io/github/last-commit/dota2modmanager/dota2-mod-manager?style=flat-square&label=%D0%BF%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B9%20%D0%BA%D0%BE%D0%BC%D0%BC%D0%B8%D1%82&labelColor=211f26&color=8b6ff0" alt="Последний коммит">
   <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-c4b5fd?style=flat-square&labelColor=211f26" alt="Лицензия"></a>
   <a href="https://dota2modmanager.com/ru/"><img src="https://img.shields.io/badge/%D1%81%D0%B0%D0%B9%D1%82-dota2modmanager.com-c4b5fd?style=flat-square&labelColor=211f26" alt="Сайт"></a>
+  <a href="mailto:hello@dota2modmanager.com"><img src="https://img.shields.io/badge/%D0%BF%D0%BE%D1%87%D1%82%D0%B0-hello%40dota2modmanager.com-c4b5fd?style=flat-square&labelColor=211f26" alt="Почта: hello@dota2modmanager.com"></a>
+  <a href="https://discord.gg/PBvG8D9MxT"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FPBvG8D9MxT%3Fwith_counts%3Dtrue&query=%24.approximate_presence_count&label=discord&suffix=%20%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&style=flat-square&labelColor=211f26&color=5865f2&logo=discord&logoColor=white" alt="Discord: сколько человек онлайн на сервере каталога D2PFX, где у приложения свой канал"></a>
+  <a href="https://discord.gg/PBvG8D9MxT"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FPBvG8D9MxT%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&label=%D1%83%D1%87%D0%B0%D1%81%D1%82%D0%BD%D0%B8%D0%BA%D0%BE%D0%B2&style=flat-square&labelColor=211f26&color=5865f2" alt="Discord: участников на сервере каталога D2PFX"></a>
 </p>
 
 <p>
@@ -46,8 +55,8 @@
 > единственная функция, которая их меняет, сначала спрашивает и откатывается байт в байт.
 
 > **А почему не скопировать файлы руками?** Можно, и так делают. Приложение добавляет всё, что
-> идёт дальше: выключить мод перед матчем, не удаляя его, бесплатную косметику из таблицы
-> предметов самой игры, сборку одной ссылкой и работающую игру после патча Доты.
+> идёт дальше: выключить мод перед матчем, не удаляя его, погоду или курьера, которых аккаунт
+> не покупал, нарисованных только у тебя, сборку одной ссылкой и работающую игру после патча Доты.
 
 <br>
 
@@ -57,7 +66,7 @@
 <tr><td width="230"><b>Весь каталог</b></td><td>1000+ модов в 41 категории, читается вживую из репозитория <a href="https://github.com/h6rd/Dota2PornFxWeb">D2PFX</a>, поэтому мод, добавленный сегодня, сегодня же и ставится</td></tr>
 <tr><td><b>Один клик туда, один обратно</b></td><td>Приложение скачивает мод, занимает свободный слот pak и убирает за собой. Категории, которым надо грузиться раньше, сами получают низкие слоты</td></tr>
 <tr><td><b>Выключить, а не удалять</b></td><td>Выключи мод перед матчем и включи после. Библиотека остаётся, папка игры остаётся чистой</td></tr>
-<tr><td><b>Бесплатная косметика</b></td><td>Погода, курьеры, варды, экраны загрузки, аннонсеры, мега-киллы: читаются из таблицы предметов самой игры, поэтому всё новое от Valve появляется само</td></tr>
+<tr><td><b>Виды для стандартных предметов</b></td><td>Погода, курьеры, варды, экраны загрузки, аннонсеры, мега-киллы: стандартный предмет, который есть у любого аккаунта, рисуется как любой другой предмет игры, и видно это только тебе. Список читается из таблицы предметов самой игры, поэтому всё новое от Valve появляется само</td></tr>
 <tr><td><b>Говорит, когда моды конфликтуют</b></td><td>Два мода с одним и тем же файлом не могут победить оба. Приложение называет файл, говорит, из какого мода игра его берёт, и даёт поменять порядок</td></tr>
 <tr><td><b>Сборки ссылкой</b></td><td>Сохрани то, что стоит, пресетом и отправь одним сообщением. На той стороне откроют и получат тот же вид</td></tr>
 <tr><td><b>Переживает патчи Доты</b></td><td>Приложение замечает обновление игры и возвращает то, что патч стёр, и никогда не пишет, пока Дота запущена</td></tr>
@@ -87,18 +96,36 @@
 
 ## Установка
 
-1. Скачай **[Dota 2 Mod Manager Setup](https://github.com/TheFleece/dota2-mod-manager/releases/latest/download/Dota-2-Mod-Manager-Setup.exe)** — прямая ссылка, всегда последняя версия
+1. Скачай **[Dota 2 Mod Manager Setup](https://github.com/dota2modmanager/dota2-mod-manager/releases/latest/download/Dota-2-Mod-Manager-Setup.exe)** — прямая ссылка, всегда последняя версия
 2. Запусти. Приложение установится, создаст ярлык и откроется
 3. Путь к Доте найдётся сам. Никаких параметров запуска и правок свойств Steam
 
-**На Linux** это [AppImage](https://github.com/TheFleece/dota2-mod-manager/releases/latest/download/Dota-2-Mod-Manager.AppImage):
+**На Linux** это [AppImage](https://github.com/dota2modmanager/dota2-mod-manager/releases/latest/download/Dota-2-Mod-Manager.AppImage):
 `chmod +x` и запускай.
 
 > [!IMPORTANT]
 > Windows скажет, что издатель неизвестен: у установщика нет платной подписи. Жми **Подробнее**,
 > потом **Выполнить в любом случае**. Каждый релиз собирается из этих исходников
-> [публичным воркфлоу](https://github.com/TheFleece/dota2-mod-manager/actions/workflows/release.yml),
+> [публичным воркфлоу](https://github.com/dota2modmanager/dota2-mod-manager/actions/workflows/release.yml),
 > а не заливается с чьего-то компьютера, и лог сборки ровно того файла, что ты скачал, открыт.
+
+Каждый файл релиза перечислен со своим SHA-256 в `SHA256SUMS`, а сам список релизный воркфлоу
+подписывает через Sigstore. Проверить, что скачанный файл собран именно этим воркфлоу, можно через
+GitHub CLI:
+
+```bash
+gh attestation verify Dota-2-Mod-Manager-Setup.exe --repo dota2modmanager/dota2-mod-manager
+```
+
+Или только по списку, в папке, где лежат оба файла:
+
+```bash
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+На Windows без GitHub CLI команда `Get-FileHash Dota-2-Mod-Manager-Setup.exe` в PowerShell покажет
+хеш, его сравниваешь со строкой в `SHA256SUMS`. У релизов, вышедших до появления этой проверки,
+`SHA256SUMS` нет.
 
 <br>
 
@@ -152,8 +179,14 @@ v1.14rc7 проверяет принадлежность перед чистко
 | [Все цифры, проверяемые](https://dota2modmanager.com/ru/facts/) | Версия, платформы, счётчики и как проверить каждую |
 | [ARCHITECTURE.md](ARCHITECTURE.md) · [docs/API.md](docs/API.md) | Кто за какое решение отвечает и что экспортирует каждый модуль |
 | [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md) · [SECURITY.md](SECURITY.md) | Как работать над проектом, с ИИ-ассистентом и без, и как сообщить о дыре |
-| [PRIVACY.md](PRIVACY.md) | Что собирается (ничего) и каждый адрес, куда приложение может пойти |
+| [docs/assurance-case.md](docs/assurance-case.md) | Что может пойти не так, что этому мешает и какой тест это держит |
+| [TRADEMARK.md](TRADEMARK.md) · [Политика подписи кода](docs/code-signing-policy.ru.md) | Что даёт лицензия и чего она не даёт, и что подписано сегодня |
+| [Статус](https://dota2modmanager.betteruptime.com) | Отвечают ли прямо сейчас фид обновлений, зеркало, каталог и сайт |
+| [PRIVACY.ru.md](PRIVACY.ru.md) | Что собирается (ничего) и каждый адрес, куда приложение может пойти |
 | [DECISIONS.md](DECISIONS.md) | Что решено осознанно, чего действительно не хватает, и команда, которой это проверяется |
+| [GOVERNANCE.md](GOVERNANCE.md) | Кто принимает решения, как изменение попадает в проект и что с ним будет без сопровождающего |
+| [docs/second-maintainer.md](docs/second-maintainer.md) | Вторая пара рук: что это за роль и что делать в день, когда она понадобится |
+| [ROADMAP.md](ROADMAP.md) | Что будет дальше, что позже и чего этот проект делать не станет |
 | [CHANGELOG.md](CHANGELOG.md) · [CHANGELOG.ru.md](CHANGELOG.ru.md) | Что менялось в каждом релизе |
 
 <br>
@@ -162,11 +195,12 @@ v1.14rc7 проверяет принадлежность перед чистко
 
 | | |
 |---|---|
-| [Баг](https://github.com/TheFleece/dota2-mod-manager/issues/new?template=bug_report.yml) | Что-то сломалось. **Настройки → Диагностика → Экспортировать отчёт** соберёт всё нужное в один файл |
-| [Идея](https://github.com/TheFleece/dota2-mod-manager/issues/new?template=feature_request.yml) | Предложение, как приложение должно работать |
-| [Обсуждения](https://github.com/TheFleece/dota2-mod-manager/discussions) | Вопросы, сборки, которые не грех показать, и всё, что пока не баг |
-| [Discord](https://discord.gg/PBvG8D9MxT) | Быстрая помощь, в сообществе каталога |
+| [Баг](https://github.com/dota2modmanager/dota2-mod-manager/issues/new?template=bug_report.yml) | Что-то сломалось. **Настройки → Диагностика → Экспортировать отчёт** соберёт всё нужное в один файл |
+| [Идея](https://github.com/dota2modmanager/dota2-mod-manager/issues/new?template=feature_request.yml) | Предложение, как приложение должно работать |
+| [Обсуждения](https://github.com/dota2modmanager/dota2-mod-manager/discussions) | Вопросы, сборки, которые не грех показать, и всё, что пока не баг |
+| [Discord](https://discord.gg/PBvG8D9MxT) | Быстрая помощь в посте Mod Manager в разделе #utilities на сервере каталога D2PFX, новые версии в #mod-manager. Мейнтейнер там под ником Fleece, с ролью Dota 2 Mod Manager Dev и привязанным к профилю GitHub. Кто сейчас в сети, видно без аккаунта в [виджете](https://discord.com/widget?id=1488030765429166163) сервера |
 | [Безопасность](SECURITY.md) | Уязвимости — лично, никогда публичным issue |
+| [hello@dota2modmanager.com](mailto:hello@dota2modmanager.com) | Всё, чему не место в публичном трекере: пресса, лицензия, вопросы от компании |
 
 Сначала две вещи: убедись, что стоит последняя версия, и если Дота недавно обновлялась — открой
 приложение и дай ему вернуть патч на место.
@@ -190,13 +224,17 @@ v1.14rc7 проверяет принадлежность перед чистко
 |---|---|
 | [Тесты](.github/workflows/test.yml) | Сначала eslint, потом весь набор с порогом покрытия, на Linux и на Windows. Часть тестов проверяет не модуль, а проект на согласие с самим собой: у каждого IPC-канала есть обработчик и каждый обработчик запускается, каждый импорт в renderer находится, у каждой русской строки есть английский близнец, версия и оба чейнджлога сходятся, `docs/API.md` соответствует исходникам, а `DECISIONS.md` соответствует репозиторию |
 | [CodeQL](.github/workflows/codeql.yml) | Анализ на безопасность и качество, плюс прогон раз в неделю |
-| [Релиз](.github/workflows/release.yml) | Только на тег: собирает установщик, портативную сборку и AppImage из того самого коммита и публикует их с секцией чейнджлога для этой версии |
+| [Linux](.github/workflows/linux.yml) | Собирает AppImage, запускает приложение на песочнице, снимает первое окно и читает лог на код, который не смог выполниться |
+| [Окно](.github/workflows/e2e.yml) | На Linux и на Windows: кликами в окне ставит мод, выключает, включает и удаляет его, сверяя папку игры на диске после каждого запуска. Без сети, на тестовом каталоге |
+| [Релиз](.github/workflows/release.yml) | Только на тег: собирает установщик, портативную сборку и AppImage из того самого коммита в черновик релиза, ставит установщик и AppImage из черновика и прокликивает мод в каждом, а публикует релиз с секцией чейнджлога, только когда оба прошли |
 | [Сайт](.github/workflows/site.yml) | Пересобирает сайт, чтобы его счётчики, версия и эта картинка оставались правдой. На pull request только собирает сайт и проверяет результат |
 | [Зеркало](.github/workflows/mirror.yml) | Толкает ту же историю на [GitLab](https://gitlab.com/TheFleece/dota2-mod-manager), чтобы код пережил этот репозиторий |
-| [Отчёт о поиске](.github/workflows/seo.yml) | Раз в неделю, а не на каждый пуш: скачивания, проверки обновлений и переходы из Google, Bing и Яндекса. Всё уходит в [одно открытое issue](https://github.com/TheFleece/dota2-mod-manager/issues/3), прошлые недели там же выше |
+| [Отчёт о поиске](.github/workflows/seo.yml) | Раз в неделю, а не на каждый пуш: скачивания, проверки обновлений и переходы из Google, Bing и Яндекса. Всё уходит в [одно открытое issue](https://github.com/dota2modmanager/dota2-mod-manager/issues/3), прошлые недели там же выше |
 | [Радар](.github/workflows/radar.yml) | Раз в день, а не на каждый пуш: переписывает закреплённое issue «Project status» (что ждёт решения, что красное, что скоро истекает) и пишет мейнтейнеру обо всём просроченном |
 | [Правила PR](.github/workflows/pull-request.yml) | На каждом pull request: изменение, которое что-то чинит, меняет и тест или объясняет строкой `No-Test-Because:`, почему не может |
 | [Метки](.github/workflows/labels.yml) | Держит метки репозитория равными `.github/labels.json` |
+| [Обновления зависимостей](.github/workflows/dependency-updates.yml) | На PR от Dependabot: minor и patch сами встают в очередь на слияние и сливаются, когда прошли все обязательные проверки и мейнтейнер поставил апрув; всё крупнее получает метку и ждёт мейнтейнера |
+| [Scorecard](.github/workflows/scorecard.yml) | Раз в неделю и на каждое изменение main: OpenSSF Scorecard оценивает, как содержится репозиторий (закреплённые actions, права токенов, защита ветки, подписанные релизы), и публикует оценку за значком выше |
 
 Ничто из этого не коммитит обратно в `main`. То, что воркфлоу нужно помнить между запусками,
 лежит в кеше Actions, а у еженедельного отчёта в конце его же комментария: коммит от бота на каждый
@@ -216,7 +254,8 @@ npm run sandbox:seed      # одноразовое дерево игры с на
 npm run start:sandbox     # приложение против него, а не против своей игры
 ```
 
-Node 24, Electron 44, без сборщика: рендерер — обычные HTML, CSS и JavaScript. Каждый релиз
+Node 24, Electron 44. Главный процесс на TypeScript, Node запускает его без сборки, а окно на
+TypeScript и React, его собирает Vite. Каждый релиз
 делает [`release.yml`](.github/workflows/release.yml) из того коммита, на который указывает тег.
 
 **Если задумал больше, чем починку — сначала issue.** Это одно сообщение, и оно спасает от
@@ -251,20 +290,22 @@ Node 24, Electron 44, без сборщика: рендерер — обычны
 | [Electron](https://github.com/electron/electron) | Окно и процесс за ним | MIT |
 | [electron-updater](https://github.com/electron-userland/electron-builder) | Проверка обновлений и их установка | MIT |
 | [adm-zip](https://github.com/cthackers/adm-zip) | Чтение архивов модов, за нашими проверками размера и путей | MIT |
+| [React](https://github.com/facebook/react) | Экраны окна, собранные в его страницу | MIT |
+| [Motion](https://github.com/motiondivision/motion) | Как движутся экраны окна, собрано в его страницу | MIT |
 | [Source 2 Viewer](https://github.com/ValveResourceFormat/ValveResourceFormat) | Расшифровка текстур игры для иконок предметов. Качается по требованию, в сборку не входит | MIT |
 | [Inter](https://github.com/rsms/inter), [Exo 2](https://github.com/NDISCOVER/Exo-2.0), [Material Symbols](https://github.com/google/material-design-icons) | Шрифты и иконки, лежат внутри приложения, а не тянутся из сети | OFL-1.1, Apache-2.0 |
 | [Astro](https://github.com/withastro/astro) | Сайт документации, не приложение | MIT |
 
 <!-- facts:deps-ru -->
-В `package.json` их пять: `adm-zip` и `electron-updater` едут внутри приложения, `electron`, `electron-builder` и `eslint` только собирают или проверяют его.
+В `package.json` их 14: `adm-zip` и `electron-updater` едут внутри приложения, `motion`, `react` и `react-dom` собраны в его окно, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `electron`, `electron-builder`, `eslint`, `fast-check`, `typescript` и `vite` только собирают или проверяют его.
 <!-- /facts:deps-ru -->
-Тесты и всё в `tools/` не зависят ни от чего. Чтение и запись VPK, разбор KeyValues, защита от zip-бомб и логика обновления написаны
+Тесты не зависят ни от чего, а в `tools/` одна зависимость, `vite`: она собирает окно. Чтение и запись VPK, разбор KeyValues, защита от zip-бомб и логика обновления написаны
 здесь, потому что каждая зависимость — это чужак с правом записи в папку игры на десятках тысяч
 машин.
 
 Валвовский `vpk.exe` сюда сознательно **не** добавлен и добавлен не будет: он проприетарный, а
 проект, который его везёт, уже не открытый в том смысле, в каком это понимает SignPath. Поэтому
-и существует `src/vpk.js`.
+и существует `src/vpk.ts`.
 
 <br>
 
@@ -287,7 +328,7 @@ Node 24, Electron 44, без сборщика: рендерер — обычны
 
 ## Лицензия
 
-[GPL-3.0](LICENSE). Copyright (C) 2026 Mykhailo Lynnyk. Подробности и две добавки по седьмой
+[GPL-3.0](LICENSE). Copyright (C) 2026 TheFleece. Подробности и две добавки по седьмой
 секции лицензии — в [NOTICE](NOTICE).
 
 <div align="center">

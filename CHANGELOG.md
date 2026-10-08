@@ -2,6 +2,413 @@
 
 What changed in each release. The app updates itself, so you get all of this without reinstalling.
 
+## 2.9.0
+
+### Mods load again after Dota's 7 October update
+
+With safe mode off, Dota's 7 October update could stop the mods in your language folder from
+loading. Weather and items kept working, the rest did not.
+
+To let mods change items, the app adds its own folder to the list of places Dota reads, and it
+copies that list from Dota's own file. The update renamed one line in Dota's file. The copy the
+app had written before the update kept the old name, and the game skipped your language folder.
+
+The app now compares its copy with Dota's file at every start and while it is open, and writes it
+again when they differ. Opening this version is enough. With safe mode on, nothing broke.
+
+### My mods names the mods a Dota update reached
+
+A mod replaces some of Dota's files with its own copies. When an update changes one of those files,
+the mod keeps putting its old copy back, and sometimes a HUD or a screen breaks.
+
+From this version on, the app notes which of Dota's files your mods replace. After the next Dota
+update, a mod whose files the update changed or removed gets a pre-patch mark in My mods, and the
+banner about the update names it. If something in the game looks off after a patch, start with
+those mods. The mark goes away once the mod's author updates it and you install the new version.
+
+### What's new keeps paragraphs apart
+
+This window ran a section's second paragraph into the first, as you could see in the 2.8.0
+notes. Each paragraph now stands on its own.
+
+## 2.8.0
+
+Everything the four 2.8.0 betas brought, now for everybody.
+
+### Items: a hero's default items in the look of any of its wearables
+
+Cosmetics → Items lists every hero. Open one, pick a slot and choose any of that hero's
+wearables: the default item in that slot takes its look. Only you see it, and no mod file
+changes. You can add particle effects on top, one or several: fire, lightnings, frostbloom, snow,
+bubbles, sand storm and ghost. Frostbloom and snow do not hold on every model.
+
+Nothing reaches the game until you press Equip. Each item you put on is a row in My mods with its
+effects named, and turns off like any mod. A hero's window opens with Sets: Equip the whole set
+puts every piece on at once, each as its own row. A piece the builder leaves alone, such as an
+arcana, stays in the window, dimmed, with the reason.
+
+### Heroes opens on a grid of heroes
+
+Heroes in the catalog used to be 463 mod cards in one run. It now opens on one tile per hero,
+with the hero's portrait, how many mods it has and whether you have one installed. Press a hero
+to see its mods. The switch in the toolbar brings the list back.
+
+### The window moves
+
+Every screen was redrawn on new foundations, and things now move to where they go instead of
+jumping there. In the catalog the highlight slides to the category you pick, and a mod window
+opens out of its card. In My mods a mod you move up or down the load order slides to its new
+place, a removed mod folds away, and a pack's contents open instead of popping in. A switched-off
+mod is dimmed, so you can see at a glance what the game will load. If Windows is set to show fewer
+animations, the app keeps still.
+
+### Shaders, trees and river load first
+
+Slots 02-29 now belong to shaders, trees, river, hero effects, ranged attacks, hero items and
+optimization, and every other mod starts at 30. Before, moving a hero mod above a shader could
+trade their slots. Moving and dragging now keep a mod inside its own part. If your order comes
+from an earlier version, the app lays it out once at start, while Dota is closed: it keeps your
+order inside each part and tells you the order changed.
+
+### The anti-cheat notice says what to do
+
+When Dota cannot check the game before matchmaking, it shows a Valve Anti-Cheat window saying your
+machine could not be verified, and with mods installed that reads like a ban on the way. Usually
+the cause is a damaged install or a Steam that needs a restart. The app now replaces the text of
+that window with the steps that fix it: verify the game files in Steam, restart Steam, and turn
+mods off with the Mods switch. The text follows the language the game shows, in all 28 of them.
+
+It lives in one file of the app's own, pak64 in the language folder. It is not a mod: My mods does
+not list it, the Mods switch leaves it on, and uninstalling the app removes it. If one of your mods
+sat in slot 64, it moves to the next free slot.
+
+### Whole-map terrains built for an older map
+
+Some catalog terrains, the TI and Dota+ ones among them, replace the whole map, so each carries
+Valve's map as it was on the day it was built. After Valve updates the map, such a terrain can
+remove trees, cost frames and get matchmaking refused. The catalog and My mods now mark these
+terrains "old map". When the game's map changes, the app switches an old one off once and tells
+you. If you turn it back on, it stays on until the next map update.
+
+### 18+ mods stay hidden until you say yes
+
+The catalog marks five mods 18+: explicit hero models. The app asks once whether you are 18 and
+want them shown. Until you say yes, they are hidden from the catalog, the search, Recently added
+and Favorites. Settings → Catalog has a switch to change the answer. Mods you already installed
+stay in My mods as they are.
+
+### Every author of a mod
+
+A mod's window credits everybody the catalog names on it: its authors, the people who reworked it
+and the people who sent it in, each linked to their page. Before, it named the first author, and
+the other two links opened a page that does not exist.
+
+### Fixes
+
+- Checking the game's files in Steam while the app was open turned your mods off until a restart.
+  The app now notices the check and puts its patch back.
+- Moving a mod in the load order while Dota or an antivirus held one of its files could leave the
+  mod split between two slots, and swapping two mods in that moment could delete one of them. A
+  move now happens whole or not at all.
+- A settings file saved with a byte order mark, as Notepad saves it, lost every setting on the
+  next start, the game path included. It now loads.
+- On a first start with no internet and nothing cached, presets could not be listed, shared or
+  applied. They work now.
+- Next to Minify, My mods showed a yellow warning that contradicted itself even when nothing was
+  wrong, and could name the folder "dota_null". It now names the folder the game reads, and warns
+  only when your mods are the ones not loading.
+- When the wiki answered with a server error for a cosmetic's picture, the app took that for "no
+  picture" and showed none for a week. It asks again next time now.
+- On a short window, such as a 1366x768 laptop at 125%, the safe mode window cut off its title and
+  both buttons. It fits now.
+- After switching to English, the sign-in button and the mods switch stayed in Russian until a
+  restart.
+- A tab pressed right after switching screens could do nothing, and a search typed on another
+  screen opened the home screen with no results.
+- The download bar stayed on screen after Source 2 Viewer finished downloading.
+- A preview paused in its first second started playing anyway. It stays paused.
+- Applying a preset with a mod the catalog lists without a file no longer tries to download a file
+  called "undefined".
+- The support report you send from Settings now says whether download mirrors are failing, which
+  tools are installed, and whether item-table changes wait for a rebuild.
+
+### Thanks
+
+h6rd wrote the item builder, and develops it further with TheFleece. Thanks to the testers who ran
+the four betas.
+
+## 2.8.0-beta.4
+
+A fourth beta for the testers on the list. Everything in it, and in the betas before it, reaches
+everybody with 2.8.0.
+
+### The window moves
+
+Every screen was redrawn on new foundations, and things now move to where they go instead of
+jumping there:
+
+- In the catalog, the highlight slides to the category you pick. A chip or a filter slides the
+  cards that stay into their new places and fades the rest. A mod window opens out of its card.
+- In My mods, a mod you move up or down the load order slides to its new place, passing over its
+  neighbour. A mod you remove, or that the search leaves out, folds away and the rows below close
+  the gap. A pack's contents open and close instead of popping in.
+- A deleted preset folds away, a preset's contents open to their height, and a setting you change
+  swaps its value in place.
+
+A drag in My mods drops without an extra animation. If Windows is set to show fewer animations,
+the app keeps still. A switched-off mod in My mods is now dimmed, so you can see at a glance what
+the game will load.
+
+Apart from the motion, nothing should look different. If something does, tell us in Discord.
+
+### Fixes
+
+- Moving a mod in the load order while Dota or an antivirus held one of its files could leave the
+  mod split between two slots, where neither the game nor My mods could find it. Swapping two mods
+  in that moment could delete one of them. A move now happens whole or not at all.
+- On a first start with no internet and nothing cached, presets could not be listed, shared or
+  applied. They work now.
+- On a short window, such as a 1366x768 laptop at 125%, the safe mode window cut off its title and
+  both buttons. It fits now.
+- When Minify builds into the same folder as the app, the My mods banner could name that folder
+  "dota_null". It names the right one.
+- A preview paused in its first second started playing anyway. It stays paused.
+- The support report you send from Settings now says whether download mirrors are failing, which
+  tools are installed, and whether item-table changes wait for a rebuild. Those parts were missing
+  or showed an error.
+- Applying a preset with a mod the catalog lists without a file no longer tries to download a file
+  called "undefined".
+- When a failed change cannot put a file back, usually because Dota holds it open, the app writes
+  that to its log, so a support report shows it.
+
+## 2.8.0-beta.3
+
+A third beta for the testers on the list. Everything in it, and in the two betas before it,
+reaches everybody with 2.8.0.
+
+### 18+ mods stay hidden until you say yes
+
+The catalog marks five mods 18+: explicit hero models. The app now asks once whether you are 18
+and want them shown. Until you say yes, they are hidden from the catalog, the search, Recently
+added and Favorites. Settings → Catalog has a switch to change the answer. Mods you already
+installed stay in My mods as they are.
+
+### Fixes
+
+- A settings file saved with a byte order mark, as Notepad saves it, lost every setting on the
+  next start, the game path included. It now loads.
+
+## 2.8.0-beta.2
+
+A second beta for the testers on the list. Everything in it, and in 2.8.0-beta.1, reaches
+everybody with 2.8.0.
+
+### The anti-cheat notice says what to do
+
+When Dota cannot check the game before matchmaking, it shows a Valve Anti-Cheat window saying your
+machine could not be verified, and with mods installed that reads like a ban on the way. Usually
+the cause is a damaged install or a Steam that needs a restart. The app now replaces the text of
+that window with the steps that fix it: verify the game files in Steam, restart Steam, and turn
+mods off with the Mods switch. The text follows the language the game shows, in all 28 of them.
+
+It lives in one file of the app's own, pak64 in the language folder. It is not a mod: My mods does
+not list it, the Mods switch leaves it on, and uninstalling the app removes it. If one of your mods
+sat in slot 64, it moves to the next free slot.
+
+### Whole-map terrains built for an older map
+
+Some catalog terrains, the TI and Dota+ ones among them, replace the whole map, so each carries
+Valve's map as it was on the day it was built. After Valve updates the map, such a terrain can
+remove trees, cost frames and get matchmaking refused. The catalog and My mods now mark these
+terrains "old map". When the game's map changes, the app switches an old one off once and tells
+you. If you turn it back on, it stays on until the next map update.
+
+## 2.8.0-beta.1
+
+A beta for the testers on the list. Everything in it reaches everybody with 2.8.0.
+
+### Items: a hero's default items in the look of any of its wearables
+
+Cosmetics → Items lists every hero. Open one, pick a slot and choose any of that hero's
+wearables: the default item in that slot takes its look. Only you see it, and no mod file
+changes. You can add particle effects on top, one or several: fire, lightnings, frostbloom, snow,
+bubbles, sand storm and ghost. Frostbloom and snow do not hold on every model.
+
+Nothing reaches the game until you press Equip. The bar along the bottom of the window shows what
+goes on, and its button reads Equip, Save effects or Back to default. Each item you put on is a
+row in My mods with its effects named, and turns off like any mod.
+
+### Whole sets in one press
+
+A hero's window opens with Sets. Choose a set to see its pieces by slot, and Equip the whole set
+puts them all on at once, each as its own row in My mods. A set comes without effects: open a
+piece to add them. A piece the builder leaves alone, such as an arcana, stays in the window,
+dimmed, with the reason.
+
+### Heroes opens on a grid of heroes
+
+Heroes in the catalog used to be 463 mod cards in one run. It now opens on one tile per hero,
+with the hero's portrait, how many mods it has and whether you have one installed. Press a hero
+to see its mods. The switch in the toolbar brings the list back.
+
+### Shaders, trees and river load first
+
+Slots 02-29 now belong to shaders, trees, river, hero effects, ranged attacks, hero items and
+optimization, and every other mod starts at 30. Before, moving a hero mod above a shader could
+trade their slots. Moving and dragging now keep a mod inside its own part, and a mod you import
+and then link to the catalog moves to the part its category belongs in. If your order comes from
+an earlier version, the app lays it out once at start, while Dota is closed: it keeps your order
+inside each part and tells you the order changed.
+
+### Every author of a mod
+
+A mod's window credits everybody the catalog names on it: its authors, the people who reworked
+it and the people who sent it in, each linked to their page. Before, it named the first author,
+and the other two links opened a page that does not exist.
+
+### Fixes
+
+- Checking the game's files in Steam while the app was open turned your mods off until a
+  restart. The app now notices the check and puts its patch back.
+- A tab pressed right after switching screens could do nothing, and a search typed on another
+  screen opened the home screen with no results.
+- After switching to English, the sign-in button and the mods switch stayed in Russian until a
+  restart.
+- The download bar stayed on screen after Source 2 Viewer finished downloading, and froze where a
+  failed download stopped.
+- Next to Minify, My mods showed a yellow warning that contradicted itself even when nothing was
+  wrong. It now names the folder the game reads, and warns only when your mods are the ones not
+  loading.
+
+### Thanks
+
+h6rd wrote the item builder, and develops it further with TheFleece.
+
+## 2.7.1
+
+### The project moved to github.com/dota2modmanager
+
+The repository now belongs to an organization with two maintainers, and every change is read by
+the one who did not write it before it ships. This version looks for updates and for the
+project's notices at the new address, and its GitHub link goes there too. Older versions keep
+working: GitHub forwards the old address, so there is nothing for you to do.
+
+The Download button in your Discord status now opens dota2modmanager.com instead of the old page
+on GitHub.
+
+### Your Windows user name stays out of the diagnostic report
+
+The report listed the folders it looked at by their full path, and a path inside your home folder
+carries your Windows user name. That part is now written as `%USERPROFILE%` (`~` on Linux), so
+a report you paste into Discord shows the folder and not who you are.
+
+### Electron 44.4.3
+
+The engine the app runs on moves from 44.3.0 to 44.4.3, with the fixes Electron shipped in
+between.
+
+### Thanks
+
+Omkar Nikam wrote the diagnostic report change. It is the second pull request he has sent here.
+
+## 2.7.0
+
+### A beta channel, for the people who asked to be first
+
+A few accounts now get builds before everybody else. If yours is one of them, Settings has a
+switch under Discord; if it is not, there is nothing there and nothing to miss. Signing out of
+Discord gives up the beta with it.
+
+The list is held in a signed file the app reads on its own, so being added or taken off it does
+not wait for an update, and it holds a fingerprint of a Discord account rather than the account.
+
+Staged rollout was dropped here for a good reason: an urgent fix has to reach everybody at once.
+This is the other half of that argument, a few people who know they are running what has not been
+released yet.
+
+### The Download button works again in the portable build
+
+A portable copy that found an update answered "no update" when you pressed Download, and has
+done since 2.3.0. It read which version to fetch once at start-up, before any check had run, so
+the answer was always empty. Installed copies replace themselves and were never affected.
+
+### Fonts and cursors stop coming back after you remove them
+
+Since 2.0.0 the app put back any font or cursor that Steam's file check had replaced, and it
+decided what to put back by comparing files. A mod that ships some of Valve's files unchanged
+looked identical at once: one install logged the same cursor set as "restored after verify" 29
+times in August, and removing such a mod could leave its files behind as if they were the game's.
+
+Every font and cursor the app writes is now recorded by its hash. A file holding what the app
+wrote is the app's file, and it is no longer mistaken for the game's. A copy installed before this
+reports the old way once more, and putting it back writes the record.
+
+### A cosmetic pick, called what it actually is
+
+The window and the site used to say "free cosmetics". That was never quite true, and it hid the
+part worth knowing: the app takes the standard item your account already has and draws it with the
+look of another one, in its own copy of the game's item table. Nothing is bought, nothing enters
+your inventory, and only you see it. Every text now says that instead.
+
+### Every release is scanned, and the result is published
+
+Two false positives reached people before anybody here knew there was something to answer. Each
+release is now looked up on VirusTotal by the checksum it already carries, and the verdict goes
+into the release notes as a table with a link for every file, whatever it says.
+
+### Smaller things
+
+- The app can be told about another place to download mods from without shipping an update, which
+  matters on the day GitHub is unreachable.
+- A damaged VPK tree or archive is refused in this app's own words rather than crashing or
+  reaching you in a library's.
+- A language folder that has to be created is created in one step, so a slow disk cannot leave it
+  half made.
+
+## 2.6.12
+
+### A technical release
+
+Nothing in the window looks or behaves differently. This one is about how a release reaches you.
+The machinery below was built this week, and it should be tried on a release nobody is waiting for
+rather than on an urgent fix.
+
+### A release is installed and used before anybody can get it
+
+Until now CI built the installer and published it in the same breath. Two releases in September
+went out with installing broken: every check was green, because nothing had ever pressed the
+button.
+
+A release is now created as a draft, which no installed copy can update to. CI takes the installer
+and the AppImage from that draft, installs them, and clicks through the app: install a mod, switch
+it off, restart, switch it on, remove it, checking the game folder on disk after every step. Only
+when both pass does the release become public, for everybody at once.
+
+### Every file of a release can be checked
+
+Each release now carries `SHA256SUMS`, the SHA-256 of every file on it, and a signature for that
+list made by the release workflow itself. If you want to be sure the installer you downloaded is
+the one this repository built, with the GitHub CLI:
+
+```
+gh attestation verify Dota-2-Mod-Manager-Setup.exe --repo TheFleece/dota2-mod-manager
+```
+
+Beside it is a list of what the app ships inside it. The README and SECURITY.md show the other ways
+to check a download.
+
+### Notices in the app expire on their own
+
+The app can put a dated notice in front of you, and until now one stayed until somebody remembered
+to take it down. The thank-you for hanta's video was meant to run for a week in August and was
+still on screen in the middle of September. A notice now carries the last day it is shown, and that
+one is gone.
+
+### One less pointless request at every start
+
+The app asked GitHub for a settings file that was never published, got a 404 and carried on with
+what was built into it. It no longer asks.
+
 ## 2.6.11
 
 ### Built on Electron 44

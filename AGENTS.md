@@ -9,16 +9,26 @@ read nothing else.
 
 ## What this is
 
-A desktop mod manager for Dota 2. Electron 44 on Node 24, plain HTML, CSS and JavaScript in the
-renderer — **no bundler, no framework, no build step for the UI**. If a change would need
-webpack, TypeScript compilation or a component library, it is the wrong change.
+A desktop mod manager for Dota 2. Electron 44 on Node 24. The window is **TypeScript and React,
+with Motion for animation**, built by Vite (`vite.config.mjs`, into `out/renderer`). New screens
+and components are written that way: one component per file, logic that decides things in plain
+modules with tests, and no file past 300 lines (`npm run size` fails one). The main process in
+`src/` is TypeScript too, run without a build: Node strips the types when it loads a file.
+`preload.js` stays CommonJS JavaScript checked through its JSDoc. DECISIONS.md, "The window is
+built by Vite", says why.
 
 ```
-main.js            app lifecycle, window, auto-update. Nothing else belongs here
+src/main.ts        the order the app starts in, and auto-update. Nothing else belongs here
+src/services.ts    every long-lived service, built once in the order they depend on each other
+src/ipc.ts         every IPC module, registered in one place
 preload.js         the only bridge the renderer gets. Every channel is listed once
+renderer/api/      its types: every name on window.api, and what each handler answers
 src/               everything that thinks: installer, vpk, schema, gamelang, catalog…
-src/ipc-*.js       one file per group of channels, each naming what it needs
+src/ipc-*.ts       one file per group of channels, each naming what it needs
 renderer/          the UI. views/ draw screens, ui/ are shared pieces, core/ is state
+renderer/shell/    what is not a screen: title bar, status bar, search, drops, updates
+renderer/catalog/  the catalog's React components, and the rules they draw in .ts with tests
+renderer/library/  the same for My mods; renderer/presets/ and renderer/settings/ for the rest
 test/              node:test, no framework, no mocks library
 tools/             scripts that are not shipped: fingerprints, i18n check, sandbox
 site/              the documentation site (Astro). Separate from the app
@@ -35,18 +45,18 @@ back after they stopped being true. Every entry carries a command that settles i
 here to review rather than to change something, that file is the whole brief.
 
 **Do not read whole source files to orient yourself.** Find the symbol, then read its slice.
-`main.js` and `src/installer.js` are large and reading them end to end wastes more than it
-tells you.
+`src/schema.ts`, `src/item-builder.ts` and `src/icons.ts` are over 500 lines, and reading one end
+to end wastes more than it tells you.
 
 **The domain is unusual and the obvious assumption is usually wrong.** Three examples that have
 each cost real time:
 
 - Dota mounts **one** language folder, named after the **voice** language, and a `-language` in
-  Steam's launch options outranks the game's own setting. `src/gamelang.js` opens with the full
+  Steam's launch options outranks the game's own setting. `src/gamelang.ts` opens with the full
   rule. It is the rule, not a summary of one; change it only by measuring.
-- `items_game.txt` is ~50 MB with non-UTF8 bytes in it. `src/schema.js` works on latin1 strings
+- `items_game.txt` is ~50 MB with non-UTF8 bytes in it. `src/schema.ts` works on latin1 strings
   on purpose. A round trip through a "cleaner" encoding mangles it.
-- A pak slot decides which of two mods the game loads. Lower wins. `src/installer.js` allocates
+- A pak slot decides which of two mods the game loads. Lower wins. `src/installer.ts` allocates
   them, and 65 to 67 are never handed out because another program writes them.
 
 ## How to know your change works
@@ -65,8 +75,8 @@ mistake is expensive: `sandbox/` is a disposable copy of the game's folder shape
 `npm run start:sandbox` runs against it with its own user data.
 
 For a UI change, `MM_SHOT=<path>` takes a screenshot after load; `MM_EVAL=<js>` writes the
-answer to a question about the finished DOM beside it. Both are dev-only and documented at the
-top of `main.js`. A screenshot proves a layout; `MM_EVAL` proves the text, the language and the
+answer to a question about the finished DOM beside it. Both are dev-only and documented in
+`src/dev-harness.ts`. A screenshot proves a layout; `MM_EVAL` proves the text, the language and the
 state, and it is the one that catches real bugs.
 
 ## What the tests will not let you do
@@ -74,9 +84,9 @@ state, and it is the one that catches real bugs.
 Four of them check the project against itself rather than checking code:
 
 - `test/ipc-contract.test.js` — every channel the renderer can call has a handler, every
-  handler is reachable, none registered twice, every `src/ipc-*.js` wired into main.
+  handler is reachable, none registered twice, every `src/ipc-*.ts` wired into main.
 - `test/release-contract.test.js` — the version, both changelogs and what CI reads all agree.
-- `test/coverage.test.js` — which mod supplies a file when two carry the same path.
+- `test/coverage.test.ts` — which mod supplies a file when two carry the same path.
 - `tools/check-i18n.js` — no Russian string without an English one.
 
 If one of these fails, the fix is almost never the test.
@@ -90,7 +100,7 @@ If one of these fails, the fix is almost never the test.
 - **Errors are for people.** "Свободных слотов pakNN не осталось" beats "ENOENT".
 - **Anything that needs the network fails quietly.** The app has to work offline with what it
   cached. A feature that throws because GitHub is unreachable is a bug.
-- **Writing into the game folder is a transaction.** `src/file-tx.js`. If a step fails,
+- **Writing into the game folder is a transaction.** `src/file-tx.ts`. If a step fails,
   everything goes back, including files displaced to make room.
 - No emoji in code, comments, commits, UI or documentation.
 
@@ -102,6 +112,10 @@ here is why".
 
 A pull request should say what broke and how you know it is fixed. "Fixes the thing" with no
 reproduction is a change nobody can review.
+
+Work on a branch of your own, from main, and open your own pull request. Do not push to a
+branch that has a pull request you did not open: it merges by itself once its checks pass, and
+your commit would land under a description somebody else wrote.
 
 ## Attribution
 

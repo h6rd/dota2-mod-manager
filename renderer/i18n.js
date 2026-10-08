@@ -33,6 +33,9 @@ window.EN_PLURAL = {
   'косметик': ['cosmetic', 'cosmetics'],
   'из них — копии уже установленных модов': ['of them is a copy of a mod you already have', 'of them are copies of mods you already have'],
   'вариантов': ['option', 'options'],
+  'героев': ['hero', 'heroes'],
+  'наборов': ['set', 'sets'],
+  'деталей': ['piece', 'pieces'],
   'видов': ['look', 'looks'],
 };
 
@@ -59,6 +62,7 @@ const EN = {
 
   // ---------- group / link labels ----------
   'Все герои': 'All heroes', 'Все предметы': 'All items', 'Все крипы': 'All creeps',
+  'Вид': 'View', 'Сеткой героев': 'Hero grid', 'Все моды списком': 'All mods as a list',
   'Все башни': 'All towers', 'Все типы': 'All types', 'Все группы': 'All groups',
   'Все категории': 'All categories', 'Все слоты': 'All slots',
 
@@ -66,6 +70,16 @@ const EN = {
   // The catalog ships these in English; these are our own words for them. 'Эффекты' and
   // 'Звуки' are already above as category names, with the same English.
   'Иконки': 'Icons', 'Аниме': 'Anime', '18+': '18+',
+  // the 18+ question and its switch (core/adult.ts)
+  'Моды 18+': '18+ mods',
+  'Показывать моды 18+?': 'Show 18+ mods?',
+  'Спрашиваем один раз, ответ можно поменять в настройках': 'Asked once. You can change the answer in Settings',
+  'В каталоге {0} для взрослых: откровенные модели героев. Пока ты не ответишь, их не видно ни в каталоге, ни в поиске.': 'The catalog has {0} for adults: explicit hero models. Until you answer, they are hidden from the catalog and the search.',
+  'Уже установленные моды это не трогает.': 'Mods you already installed stay as they are.',
+  'Не показывать': 'Do not show',
+  'Мне есть 18, показывать': 'I am 18 or older, show them',
+  '{0} с откровенными моделями героев. Включая, ты подтверждаешь, что тебе есть 18 лет.': '{0} with explicit hero models. Turning this on, you confirm you are 18 or older.',
+  'Включая, ты подтверждаешь, что тебе есть 18 лет.': 'Turning this on, you confirm you are 18 or older.',
   'Видео': 'Video', 'Картинка': 'Image', 'Плохое качество': 'Poor quality',
   'Мета': 'Meta', 'Статистика': 'Stats', 'Развлечения': 'Fun', 'Исходный код': 'Source code',
   'Оружие': 'Weapon', 'Наплечники': 'Shoulders', 'Голова': 'Head', 'Руки': 'Arms',
@@ -76,6 +90,9 @@ const EN = {
   'Убрать из избранного': 'Remove from favorites',
   'Здесь пусто — жми на сердечко у мода в каталоге': 'Nothing here yet — tap the heart on a mod in the catalog',
   'Превью': 'Preview', 'Источник': 'Source', 'Автор': 'Author', 'Баг': 'Bug', 'Гайд': 'Guide',
+  // who made a mod, in the mod window (core/credits.ts)
+  'моддер': 'modder', 'отправитель': 'sender',
+  'Автор: {0}': 'Author: {0}', 'Моддер: {0}': 'Modder: {0}', 'Отправитель: {0}': 'Sender: {0}',
 
   // ---------- nav / chrome (index.html static) ----------
   'Каталог': 'Catalog', 'Библиотека': 'Library', 'Пресеты': 'Presets',
@@ -85,7 +102,7 @@ const EN = {
   'Безопасно:': 'Safe:',
   'Безопасный режим: моды из патча (эффекты, косметика) скрыты и не работают. Выключи, чтобы их включить — приложение впишет свою папку в файлы игры.':
     'Safe mode: patch-only mods (effects, cosmetics) are hidden and inactive. Turn it off to enable them — the app will register its folder in the game files.',
-  // the dialog that asks before the app is let into the game's files (renderer/ui/dialog.js)
+  // the dialog that asks before the app is let into the game's files (renderer/ui/dialog.ts)
   'Выключить безопасный режим': 'Turn safe mode off',
   'Оставить безопасный режим': 'Keep safe mode',
   'Сейчас': 'Now',
@@ -101,13 +118,20 @@ const EN = {
     'The app saves a copy of each before the first edit. Switch safe mode back on and both return byte for byte, with nothing left behind.',
   'Дота стирает эту правку каждым обновлением. Приложение впишет её заново само, пока безопасный режим выключен.':
     'Dota wipes the edit with every update. The app writes it back on its own for as long as safe mode is off.',
-  'Взамен заработают моды с эффектами, а в каталоге откроется бесплатная косметика: погода, ландшафт, курьеры, варды и ещё десяток слотов.':
-    'In return, mods with effects start working and free cosmetics open up in the catalog: weather, terrain, couriers, wards and a dozen more slots.',
+  'Взамен заработают моды с эффектами, а в каталоге откроются виды для стандартных предметов: погода, ландшафт, курьеры, варды и ещё десяток слотов. Стандартный предмет начинает выглядеть как любой другой из игры, и видно это только тебе.':
+    'In return, mods with effects start working, and the catalog opens looks for the default items every account has: weather, terrain, couriers, wards and a dozen more slots. Your default item is drawn as any other item in the game, and only you see it.',
   'Правку файлов игры в моддинге Dota считают небезопасной. За 8+ лет мы не знаем ни одного бана за это. Гарантий всё равно не даём.':
     'Dota modders count editing game files as unsafe. In 8+ years we know of no ban for it. We still give no guarantees.',
   'Безопасный режим выключен — эффекты и косметика доступны': 'Safe mode off — effects and cosmetics are available',
   'Безопасный режим включён, файлы игры восстановлены. Эффекты и косметика ждут, пока не выключишь его снова.':
     'Safe mode on, game files restored. Effects and cosmetics wait until you turn it off again.',
+
+  // ---------- the beta channel (settings, for the accounts the signed list names) ----------
+  'Бета-версии': 'Beta builds',
+  'Твой аккаунт в списке тестеров: приложение будет обновляться до сборок, которых ещё нет у остальных. Выйдешь из Discord, и оно вернётся на обычные.':
+    'Your account is on the testers list: the app will update to builds nobody else has yet. Sign out of Discord and it goes back to the ordinary ones.',
+  'Бета-версии включены': 'Beta builds on',
+  'Бета-версии выключены': 'Beta builds off',
 
   // ---------- item schema: catalog cards, library tag, conflict banners ----------
   'Моды спорят за один предмет': 'Mods disagree about the same item',
@@ -123,7 +147,7 @@ const EN = {
   'Ничего не найдено — сбрось фильтры': 'Nothing found — clear the filters',
   'Выбрано: {0}': 'Picked: {0}',
   'Вернули как в игре': 'Back to the game default',
-  'На один слот — только одна активная косметика': 'One slot, one active look at a time',
+  'На один слот — только один активный вид': 'One slot, one active look at a time',
   'эффекты': 'effects',
   'нужны правки': 'needs the patch',
   'Мод меняет схему предметов: его эффекты и иконки собраны в общую таблицу':
@@ -135,12 +159,53 @@ const EN = {
     'Files overruled: {0} — {1}. The mod that loads earlier supplies them; right-click to change the order.',
   'Косметика': 'Cosmetics',
   'Моды': 'Mods',
-  'бесплатная косметика': 'free cosmetic',
+  'вид для стандартного предмета': 'a look for a default item',
+  'Предметы': 'Items',
+  'Стандартный': 'Default',
+  'Надето': 'Equipped',
+  'Надетые': 'Equipped',
+  'Надето: {0}': 'Equipped: {0}',
+  'Надеть': 'Equip',
+  'Надеваю…': 'Equipping…',
+  'Сохранить эффекты': 'Save effects',
+  'Вернуть стандартный': 'Back to default',
+  'Можно выбрать несколько. Иней и Снег держатся не на всех моделях.':
+    'You can pick several. Frostbloom and Snow do not hold on every model.',
+  'Наборы': 'Sets',
+  '{0} из {1}': '{0} of {1}',
+  '{0} из {1} {2}': '{0} of {1} {2}',
+  'Надеть весь набор': 'Equip the whole set',
+  'старая карта': 'old map',
+  'до патча': 'pre-patch',
+  'Убрать метку «до патча»': 'Remove the pre-patch mark',
+  'Dota{0} поменяла файлы, которые подменяет этот мод: {1}. Мод возвращает их старые версии, и если в игре что-то выглядит не так, начни с него. Автору пора пересобрать мод.':
+    'Dota{0} changed files this mod replaces: {1}. The mod puts their old versions back, so if something in the game looks off, start with it. Its author needs to rebuild it.',
+  'Dota{0} убрала файлы, которые подменяет этот мод: {1}. Эта часть мода больше ни на что не действует.':
+    'Dota{0} removed files this mod replaces: {1}. That part of the mod no longer does anything.',
+  '. Патч поменял файлы, которые подменяет мод {0}. Он помечен «до патча»: если в игре что-то выглядит не так, начни с него.':
+    '. The patch changed files that {0} replaces. It is marked pre-patch: if something in the game looks off, start with it.',
+  '. Патч поменял файлы, которые подменяют моды {0}. Они помечены «до патча»: если в игре что-то выглядит не так, начни с них.':
+    '. The patch changed files that {0} replace. They are marked pre-patch: if something in the game looks off, start with them.',
+  'Ландшафт собран под карту старше той, что сейчас в игре. С ним могут пропасть деревья, упасть FPS и заблокироваться поиск матча, пока автор его не обновит.':
+    'This terrain was built for an older map than the one in the game. Until its author updates it, it can remove trees, cost frames and get matchmaking refused.',
+  'Выключено: {0}. Игра обновила карту, а этот ландшафт собран под прежнюю: с ним пропадают деревья и может не работать поиск матча.':
+    'Switched off: {0}. The game updated its map, and this terrain was built for the old one: with it the trees go missing and matchmaking may refuse you.',
+  'Ничего не найдено. Очисти поиск': 'Nothing found. Clear the search',
+  'Изменено {0} из {1}': 'Changed {0} of {1}',
+  'Надето {0} из {1} {2}': 'Equipped {0} of {1} {2}',
+  'Набор надевается без эффектов. Чтобы добавить эффект, открой деталь.':
+    'A set goes on without effects. Open a piece to add one.',
+  'Эффект добавляется к предмету: сначала выбери его выше.': 'An effect goes on an item: choose one above first.',
+  'Конструктор предметов': 'Item builder',
+  'конструктор предметов': 'item builder',
+  'Без эффектов': 'No effects',
   'Выбрать всю косметику': 'Select every look',
   'Вернуть все слоты к тому, что даёт игра': 'Put every slot back to what the game gives',
   'Косметика выключена — слоты снова как в игре': 'Cosmetics off — the slots are the game’s own again',
-  'Косметика подставляется в схему предметов игры — файлы модов она не трогает, и её видно только тебе.':
+  'Вид подставляется в схему предметов игры — стандартный предмет просто рисуется как выбранный. Файлы модов это не трогает, и видно только тебе.':
     'A look is spliced into the game’s item schema — it touches no mod files, and only you can see it.',
+  'Стандартный предмет героя сохранит свои id, name и prefab=default_item. Остальная часть блока берётся у выбранного предмета, а выбранный эффект добавляется в visuals.':
+    'The hero’s stock item keeps its own id, name and prefab=default_item. The rest of the block comes from the chosen item, and the chosen effect is added to visuals.',
   '…и ещё {0} — уточни запрос': '…and {0} more — narrow the search',
   // cosmetic slot labels
   'Погода': 'Weather', 'Ландшафт': 'Terrain', 'Интерфейс игры': 'Game HUD',
@@ -371,8 +436,8 @@ const EN = {
   // ---------- presets ----------
   '{0} не установлено': '{0} not installed',
   'не установлен': 'not installed',
-  'Пресет хранит моды. Бесплатная косметика в него не входит: она живёт своей жизнью в «Моих модах» и не выключается вместе с пресетом.':
-    'A preset holds mods. Free cosmetics are not part of one: they live in My mods on their own and are not switched off along with a preset.',
+  'Пресет хранит моды. Виды для стандартных предметов в него не входят: они живут своей жизнью в «Моих модах» и не выключаются вместе с пресетом.':
+    'A preset holds mods. Looks for default items are not part of one: they live in My mods on their own and are not switched off along with a preset.',
   'Пресет запоминает, какие моды включены. Применение пресета включает его моды и выключает остальные. Готовым пресетом можно поделиться файлом — перетащи полученный .d2mm сюда.':
     'A preset remembers which mods are on. Applying a preset enables its mods and disables the rest. A finished preset can be shared as a file — drop a .d2mm you received here.',
 
@@ -399,7 +464,7 @@ const EN = {
   'Не найдены ни у тебя, ни в файле:': 'Found neither here nor in the file:',
   'Пресет «{0}» добавлен — нажми «Установить»': 'Preset «{0}» added — press «Install»',
   'Установлено и применено: {0} {1}': 'Installed and applied: {0} {1}',
-  '{0} косметика из игры': '{0} cosmetic from the game',
+  'виды из игры: {0}': 'looks from the game: {0}',
   'Не удалось прочитать файл пресета': 'Could not read the preset file',
   'Сюда можно бросить моды (.vpk, .zip, папку) или пресет .d2mm':
     'You can drop mods here (.vpk, .zip, a folder) or a .d2mm preset',
@@ -446,7 +511,7 @@ const EN = {
   'Удалить пресет «{0}»?': 'Delete preset «{0}»?',
 
   // ---------- tools ----------
-  // the one-time offer on first run (renderer/ui/dialog.js, toolchainDialog)
+  // the one-time offer on first run (renderer/ui/dialog.ts, toolchainDialog)
   'Скачать Source 2 Viewer?': 'Download Source 2 Viewer?',
   'Открытая программа (MIT) от ValveResourceFormat, не наша': 'An open-source program (MIT) by ValveResourceFormat, not ours',
   'Дота хранит почти всё в сжатых форматах Source 2. Простую половину приложение читает само, а остальное разбирает эта программа.':
@@ -515,7 +580,7 @@ const EN = {
     'The cursor is installed into game\\dota\\resource\\cursor — no launch option needed. Originals are backed up automatically. You can switch it on and off in My mods, but only one cursor can be active: a new one turns the previous one off.',
   'Этот вид сейчас стоит в слоте «{0}». Убрать — вернуть то, что даёт игра; включить обратно можно в «Моих модах».':
     'This look currently fills the «{0}» slot. Removing it puts back what the game gives; you can switch it on again in My mods.',
-  'На один слот — только одна активная косметика: этот вид заменит «{0}». Прошлый выбор останется в «Моих модах» выключенным.':
+  'На один слот — только один вид: этот заменит «{0}». Прошлый выбор останется в «Моих модах» выключенным.':
     'One slot, one active look: this one replaces «{0}». The previous pick stays in My mods, switched off.',
 
   // ---------- settings ----------
@@ -554,11 +619,18 @@ const EN = {
   'Игра читает моды Minify из dota_{0}': 'The game is reading the Minify mods in dota_{0}',
   ', а наши {0} лежат в dota_{1} и сейчас не грузятся. {2} Какую именно — решает параметр запуска Dota, и сейчас он указывает на папку Minify.':
     ', while our {0} sit in dota_{1} and are not loading. {2} Which one is decided by the Dota launch option, and right now it names the Minify folder.',
-  'Игра читает папку dota_{0}, а модов там нет': 'The game is reading dota_{0}, and there are no mods in it',
-  '. Наши лежат в dota_{0}, Minify собирает в dota_{1}. {2}':
-    '. Ours are in dota_{0} and Minify builds into dota_{1}. {2}',
-  '. Игра читает нашу папку dota_{0}, а он собирает в dota_{1} — его моды сейчас не грузятся. {2}':
-    '. The game reads our dota_{0} while it builds into dota_{1}, so its mods are not loading. {2}',
+  '. Игра читает dota_{0}, куда ставятся наши моды. Minify собирает в dota_{1}, поэтому его моды сейчас не грузятся. {2}':
+    '. The game reads dota_{0}, where our mods go. Minify builds into dota_{1}, so its mods are not loading. {2}',
+  'Игра читает папку Minify dota_{0}, а она пуста': 'The game reads the Minify folder dota_{0}, and it is empty',
+  '. Наши {0} лежат в dota_{1} и сейчас не грузятся. {2} Какую читать, решает параметр запуска Dota.':
+    '. Our {0} sit in dota_{1} and are not loading. {2} Which one it reads is decided by the Dota launch option.',
+  '. Наши моды ставятся в dota_{0}. {1} Какую читать, решает параметр запуска Dota.':
+    '. Our mods go into dota_{0}. {1} Which one it reads is decided by the Dota launch option.',
+  'Игра читает dota_{0}, а там нет ни наших модов, ни модов Minify': 'The game reads dota_{0}, and neither we nor Minify have mods there',
+  '. Наши ставятся в dota_{0}, Minify собирает в dota_{1}. {2}':
+    '. Ours go into dota_{0} and Minify builds into dota_{1}. {2}',
+  '. Он собирает в dota_{0}, наши моды ставятся в dota_{1}. {2}':
+    '. It builds into dota_{0} and our mods go into dota_{1}. {2}',
   'Рядом установлен Minify': 'Minify is installed alongside',
   '. Он собирает в dota_{0}, а {1} Папку с таким именем игра не читает — его моды сейчас не грузятся, и на наши это не влияет. В свежих версиях Minify это решено переходом на голландский.':
     '. It builds into dota_{0}, and {1} No folder by that name is read, so its mods are not loading and ours are unaffected. Newer Minify releases solved this by moving to Dutch.',
@@ -591,6 +663,8 @@ const EN = {
   ', менять ничего не пришлось': ', and nothing needed changing',
   '. Можно играть.': '. You are good to play.',
   'Понятно': 'Got it',
+  'Порядок загрузки обновлён: шейдеры, деревья, река, эффекты героев и ещё несколько категорий теперь грузятся раньше остальных модов.':
+    'Load order updated: shaders, trees, river, hero effects and a few more categories now load before the other mods.',
   'Dota обновилась, пока игра запущена': 'Dota updated while the game was running',
   '. Моды в этой сессии не работают: файлы игры заняты. Закрой Dota — приложение вернёт всё само.':
     '. Mods are off for this session because the game holds its files open. Close Dota and the app puts everything back on its own.',

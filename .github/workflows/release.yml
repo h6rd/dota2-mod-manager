@@ -20,7 +20,25 @@ jobs:
     permissions:
       contents: read
       checks: read
+      # whether the workflows the release relies on after publishing are switched on
+      actions: read
+    outputs:
+      beta: ${{ steps.kind.outputs.beta }}
     steps:
+      # A beta is a tag with a prerelease part: v2.7.0-beta.1. Everything above the publish step
+      # treats it exactly like a release, because a build nobody has installed is not worth
+      # handing to a tester either.
+      - name: Beta or release
+        id: kind
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          case "$TAG" in
+            *-beta.*) echo 'beta=true' >> "$GITHUB_OUTPUT"; echo "$TAG is a beta" ;;
+            *) echo 'beta=false' >> "$GITHUB_OUTPUT"; echo "$TAG is a release" ;;
+          esac
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -31,6 +49,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tools/release-gate.mjs "$GITHUB_SHA"
+
+      # Everything after publish needs something kept elsewhere: the webhook, the bucket keys, the
+      # antivirus workflow, a changelog section in both languages. On 2.7.1 the first sign that one of
+      # them failed came after the release was public. Checked here, before anything is built, so a
+      # wrong one stops the release while it is still a tag. tools/release-preflight.mjs changes nothing.
+      - name: Check that everything after publishing will work
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          BETA: ${{ steps.kind.outputs.beta }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: node tools/release-preflight.mjs
 
   build:
     needs: gate
@@ -56,15 +90,21 @@ jobs:
       # stopped updating. A release that already exists is one electron-builder uploads into
       # rather than races to create. It also puts the notes on the page at creation, which the
       # edit afterwards could not do while two releases shared a tag.
+      #
+      # It opens as a draft. A draft is invisible to /releases/latest, so no installed copy can
+      # update to it, and the mirror and Discord hear nothing, until try-windows and try-linux
+      # have installed this very build and clicked a mod through it. publish then shows it to
+      # everybody at once.
       - name: Open the release with its notes
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          EXTRA: ${{ needs.gate.outputs.beta == 'true' && '--prerelease' || '' }}
         run: |
           awk -v v="${TAG#v}" '
-            $0 ~ "^## " v "([^0-9.]|$)" { on = 1; next }
+            $0 ~ "^## " v "([^-0-9A-Za-z.]|$)" { on = 1; next }
             on && /^## / { exit }
             on { print }
           ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
@@ -72,16 +112,22 @@ jobs:
             echo "::warning::CHANGELOG.md has no section for $TAG - the release page will be empty"
             printf '' > notes.md
           fi
+          # SignPath asks for the term on every page people download from; the Discord post drops
+          # it again (SIGNING_POLICY in tools/release-state.js)
+          { echo; echo '[Code signing policy](https://dota2modmanager.com/code-signing/)'; } >> notes.md
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             echo "release already exists, leaving it alone"
           else
-            gh release create "$TAG" --repo "$REPO" --title "${TAG#v}" --notes-file notes.md
+            gh release create "$TAG" --repo "$REPO" --title "${TAG#v}" --notes-file notes.md --draft $EXTRA
           fi
 
-      - name: Build and publish installer
+      # EP_DRAFT keeps electron-builder uploading into the draft above. Without it, a release it
+      # had to create for itself would come out public.
+      - name: Build and upload the installer to the draft
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ github.token }}
+          EP_DRAFT: 'true'
 
       # The portable build cannot install over itself, so the app downloads the new one and
       # leaves it beside the old one. That download is only worth anything if there is
@@ -97,31 +143,31 @@ jobs:
           node tools/portable-manifest.js dist "${TAG#v}"
           gh release upload "$TAG" dist/portable.yml --repo "$REPO" --clobber
 
-      # What broke on 2.2.0 was invisible until somebody looked at the API by hand: the
-      # workflow was green, the installer was on a page, and the app could not update. These
-      # three checks are that look, done by the machine on every release.
-      - name: Check the release is one release and can be updated to
+      # A second release on the same tag is what broke 2.2.0, and nothing showed it until somebody
+      # read the API by hand. Checked here on the draft; whether it became the latest is checked
+      # in publish, once there is something public to check.
+      - name: Check the draft is one release and carries the Windows files
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          count=$(gh api "repos/$REPO/releases" --jq "[.[] | select(.tag_name == \"$TAG\")] | length")
+          release=$(gh api "repos/$REPO/releases" --jq "[.[] | select(.tag_name == \"$TAG\")]")
+          count=$(echo "$release" | jq 'length')
           if [ "$count" != "1" ]; then
             echo "::error::$count releases carry the tag $TAG - GitHub will answer /releases/latest with the wrong one"
             exit 1
           fi
-          latest=$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')
-          if [ "$latest" != "$TAG" ]; then
-            echo "::error::/releases/latest says $latest, not $TAG - installed copies follow that endpoint"
+          if [ "$(echo "$release" | jq '.[0].draft')" != "true" ]; then
+            echo "::error::the release for $TAG is already public, before any job has tried the build"
             exit 1
           fi
           for want in latest.yml portable.yml Dota-2-Mod-Manager-Setup.exe Dota-2-Mod-Manager-Portable.exe; do
-            gh api "repos/$REPO/releases/latest" --jq '[.assets[].name]' | grep -q "$want" \
-              || { echo "::error::$want is missing from the release the updater reads"; exit 1; }
+            echo "$release" | jq -r '.[0].assets[].name' | grep -qx "$want" \
+              || { echo "::error::$want is missing from the draft"; exit 1; }
           done
-          echo "one release, it is the latest, and it carries the installer and the manifest"
+          echo "one release, still a draft, carrying the installer and the manifests"
 
   # Linux ships from the same tag, and after the Windows job rather than beside it.
   # electron-builder creates a release when it finds none, and two builds creating one for the
@@ -143,24 +189,398 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and publish the AppImage
+      - name: Build and upload the AppImage to the draft
         run: npx electron-builder --linux --publish always
         env:
           GH_TOKEN: ${{ github.token }}
+          EP_DRAFT: 'true'
 
       # The same look the Windows job takes at itself. latest-linux.yml is what an installed
-      # AppImage reads to find out there is a newer one.
-      - name: Check the Linux assets are on the release
+      # AppImage reads to find out there is a newer one. The tag endpoint does not return a
+      # draft, so the release is found in the list.
+      - name: Check the Linux assets are on the draft
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
+          names=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[].name")
           for want in Dota-2-Mod-Manager.AppImage latest-linux.yml; do
-            gh api "repos/$REPO/releases/tags/$TAG" --jq '[.assets[].name]' | grep -q "$want" \
-              || { echo "::error::$want is missing from the release"; exit 1; }
+            echo "$names" | grep -qx "$want" \
+              || { echo "::error::$want is missing from the draft"; exit 1; }
           done
-          echo "the AppImage and its update file are on the page"
+          echo "the AppImage and its update file are on the draft"
+
+  # Every file on the draft, fingerprinted and signed for, before anything tries it.
+  #
+  # SHA256SUMS lists each file's SHA-256. The provenance attestation signs that list through
+  # Sigstore with this workflow's identity, so `gh attestation verify` can say a download came out
+  # of this workflow at this commit, which a hash printed next to the file cannot. The bundle goes
+  # on the release as SHA256SUMS.intoto.jsonl for anyone checking offline. The SBOM names what the
+  # app ships inside it, and is attested for the same files. The try jobs then check their download
+  # against SHA256SUMS, so the bytes that get installed and clicked are the bytes signed for.
+  checksums:
+    name: Fingerprint and attest the draft
+    needs: [build, linux]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      # reading the draft and adding files to it
+      contents: write
+      # Sigstore signs with the workflow's identity token
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Download every file on the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | \"\(.id) \(.name)\"" > assets.txt
+          while read -r id name; do
+            # a rerun finds this job's own files already there; they are written fresh below
+            case "$name" in SHA256SUMS|SHA256SUMS.intoto.jsonl|dota2-mod-manager.cdx.json|beta.yml|beta-linux.yml) continue ;; esac
+            gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$id" > "release/$name"
+          done < assets.txt
+          ls -l release
+
+      # A tester's copy reads beta.yml, and electron-builder names the feed latest.yml whatever the
+      # version says. So the same feed goes on the draft again under the beta names: for a beta it is
+      # the build its testers are offered, for a release it moves a tester off the beta it replaces.
+      # It used to be added after publishing, and on 2.7.1 that step never ran. A published release
+      # is immutable and cannot gain a file, so it goes on here, and SHA256SUMS covers it.
+      - name: Give the beta channel its feed
+        run: |
+          set -euo pipefail
+          cp release/latest.yml release/beta.yml
+          cp release/latest-linux.yml release/beta-linux.yml
+
+      # From the lockfile alone: what the app ships, without the tools that build it.
+      - name: Write the SBOM
+        run: npm sbom --sbom-format cyclonedx --omit dev --package-lock-only > release/dota2-mod-manager.cdx.json
+
+      - name: Write SHA256SUMS
+        working-directory: release
+        run: |
+          sha256sum -- * > ../SHA256SUMS
+          cat ../SHA256SUMS
+
+      - name: Attest where every file came from
+        id: provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: SHA256SUMS
+
+      - name: Attest the SBOM for the same files
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: SHA256SUMS
+          sbom-path: release/dota2-mod-manager.cdx.json
+
+      # OpenSSF Scorecard's Signed-Releases check looks for a signature among a release's files, and
+      # checking a download without asking GitHub needs the bundle anyway.
+      - name: Put SHA256SUMS, the SBOM, the provenance bundle and the beta feed on the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          cp "$BUNDLE" SHA256SUMS.intoto.jsonl
+          gh release upload "$TAG" SHA256SUMS SHA256SUMS.intoto.jsonl release/dota2-mod-manager.cdx.json \
+            release/beta.yml release/beta-linux.yml --repo "$REPO" --clobber
+
+  # Install the build that is about to go out, and use it.
+  #
+  # The Window workflow proves the source tree works. These two prove the bytes on the draft do:
+  # the file a person downloads, installed or unpacked the way they would, then the same clicks
+  # tools/e2e.mjs makes on every pull request (install a mod, switch it off and on, remove it) in
+  # the sandbox game tree. 2.6.5 and 2.6.6 would have stopped here, and so would a file left out
+  # of the package, which a run from source can never notice.
+  try-windows:
+    name: Install a mod with the installer on the draft
+    needs: [build, checksums]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    # a draft can be read only by a token that can write to the repository
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # The fixture is built with this repository's VPK writer and adm-zip. The Electron that npm
+      # would download is not the app under test, so it is skipped.
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Download the installer from the draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"Dota-2-Mod-Manager-Setup.exe\") | .id")
+          [ -n "$id" ] || { echo "::error::the draft has no installer"; exit 1; }
+          gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$id" > setup.exe
+          ls -l setup.exe
+          # the installer about to be tried is the one checksums fingerprinted and attested
+          sums=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"SHA256SUMS\") | .id")
+          [ -n "$sums" ] || { echo "::error::the draft has no SHA256SUMS"; exit 1; }
+          gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$sums" > SHA256SUMS
+          want=$(awk '$2 == "Dota-2-Mod-Manager-Setup.exe" { print $1 }' SHA256SUMS)
+          have=$(sha256sum setup.exe | cut -d' ' -f1)
+          if [ -z "$want" ] || [ "$want" != "$have" ]; then
+            echo "::error::the installer on the draft is not the one SHA256SUMS lists"
+            exit 1
+          fi
+          echo "the installer matches SHA256SUMS: $have"
+
+      # /S installs without asking anything, into the same per-user folder a person's click does.
+      - name: Install it
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath .\setup.exe -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the installer exited with $($p.ExitCode)" }
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter 'Dota 2 Mod Manager.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'the installer finished and put no Dota 2 Mod Manager.exe under LOCALAPPDATA\Programs' }
+          "APP=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "installed: $($exe.FullName)"
+
+      - name: Install, switch off, switch on and remove a mod by clicking
+        shell: pwsh
+        run: node tools/e2e.mjs --app "$env:APP"
+
+      - name: What the window showed
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-release-windows
+          path: e2e-output/
+          if-no-files-found: warn
+
+  try-linux:
+    name: Install a mod with the AppImage on the draft
+    needs: [linux, checksums]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Install xvfb
+        # A mirror that stops answering held this step for two hours on 2026-10-01. apt drops a
+        # silent connection after 30 s and tries another, and the step gives up at ten minutes.
+        timeout-minutes: 10
+        # The Ubuntu image ships xvfb (actions/runner-images, Ubuntu 24.04), so apt runs only when it is
+        # missing. On 2026-10-07 two runs spent their ten minutes waiting on azure.archive.ubuntu.com
+        # for a package that was already installed.
+        run: |
+          if command -v Xvfb >/dev/null && command -v xvfb-run >/dev/null; then
+            echo "xvfb is already on the runner"
+          else
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 install -y xvfb
+          fi
+      # A runner has no FUSE to mount an AppImage with, so it is unpacked. AppRun is the program
+      # the AppImage would have started.
+      - name: Download and unpack the AppImage from the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"Dota-2-Mod-Manager.AppImage\") | .id")
+          [ -n "$id" ] || { echo "::error::the draft has no AppImage"; exit 1; }
+          gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$id" > app.AppImage
+          # the AppImage about to be tried is the one checksums fingerprinted and attested
+          sums=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"SHA256SUMS\") | .id")
+          [ -n "$sums" ] || { echo "::error::the draft has no SHA256SUMS"; exit 1; }
+          gh api -H "Accept: application/octet-stream" "repos/$REPO/releases/assets/$sums" > SHA256SUMS
+          want=$(awk '$2 == "Dota-2-Mod-Manager.AppImage" { print $1 }' SHA256SUMS)
+          have=$(sha256sum app.AppImage | cut -d' ' -f1)
+          if [ -z "$want" ] || [ "$want" != "$have" ]; then
+            echo "::error::the AppImage on the draft is not the one SHA256SUMS lists"
+            exit 1
+          fi
+          echo "the AppImage matches SHA256SUMS: $have"
+          chmod +x app.AppImage
+          ./app.AppImage --appimage-extract > /dev/null
+          ls -l squashfs-root/AppRun
+
+      - name: Install, switch off, switch on and remove a mod by clicking
+        run: xvfb-run -a node tools/e2e.mjs --app squashfs-root/AppRun
+
+      - name: What the window showed
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-release-linux
+          path: e2e-output/
+          if-no-files-found: warn
+
+  # The one step that shows the release to anybody, and it runs only when both builds on the draft
+  # installed a mod and took it off again. Everything that reaches a person comes after it: the
+  # update installed copies fetch, the mirror, the Discord post.
+  #
+  # A failure above leaves the draft where only the maintainer can see it. RELEASING.md says what
+  # to do with it, and what to do when a release that did go out turns out to be broken.
+  publish:
+    needs: [gate, build, linux, checksums, try-windows, try-linux]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      # Every file, before anybody can see the release. Releases are immutable: nothing can be added
+      # to one once it is out, so a file missing here would be missing for good. The list is
+      # tools/release-state.js, the same one the check after publishing and the watch read.
+      - name: Check the draft carries every file
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\" and .draft) | .assets[].name" > names.txt
+          if ! missing=$(node tools/release-state.js missing < names.txt); then
+            echo "::error::the draft of $TAG is missing: $(echo $missing). Nothing was published"
+            exit 1
+          fi
+          echo "the draft carries every file the updater, the testers and a person checking a download read"
+
+      # By id: the tag endpoint does not see a draft, and `gh release edit` sends the tag along with
+      # the change, which GitHub refuses whenever a second release shares it.
+      - name: Publish the draft, for everybody at once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          BETA: ${{ needs.gate.outputs.beta }}
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name == \"$TAG\" and .draft) | .id")
+          [ -n "$id" ] || { echo "::error::no draft release carries $TAG"; exit 1; }
+          if [ "$BETA" = "true" ]; then
+            # a prerelease, and never /releases/latest: an installed copy on the stable channel
+            # follows that endpoint, and a tester follows beta.yml instead
+            gh api --method PATCH "repos/$REPO/releases/$id" -F draft=false -F prerelease=true -f make_latest=false > /dev/null
+            echo "beta $id ($TAG) is out, for the testers on the list"
+          else
+            gh api --method PATCH "repos/$REPO/releases/$id" -F draft=false -f make_latest=true > /dev/null
+            echo "release $id ($TAG) is public"
+          fi
+
+      # What broke on 2.2.0 was invisible until somebody looked at the API by hand: the workflow was
+      # green, the installer was on a page, and the app could not update. This is that look, taken
+      # by the machine once the release is public.
+      - name: Check the release is one release and can be updated to
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          BETA: ${{ needs.gate.outputs.beta }}
+        run: |
+          set -euo pipefail
+          count=$(gh api "repos/$REPO/releases" --jq "[.[] | select(.tag_name == \"$TAG\")] | length")
+          if [ "$count" != "1" ]; then
+            echo "::error::$count releases carry the tag $TAG - GitHub will answer /releases/latest with the wrong one"
+            exit 1
+          fi
+          if [ "$BETA" = "true" ]; then
+            # the stable endpoint must still answer with the last release, or every copy on the
+            # stable channel would be offered a build meant for a handful of testers
+            latest=$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')
+            if [ "$latest" = "$TAG" ]; then
+              echo "::error::/releases/latest says $TAG, which is a beta - installed copies follow that endpoint"
+              exit 1
+            fi
+            if ! missing=$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets[].name' | node tools/release-state.js missing); then
+              echo "::error::the beta the testers read is missing: $(echo $missing)"
+              exit 1
+            fi
+            echo "beta $TAG carries its feed, and the stable endpoint still answers $latest"
+            exit 0
+          fi
+          latest=$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')
+          if [ "$latest" != "$TAG" ]; then
+            echo "::error::/releases/latest says $latest, not $TAG - installed copies follow that endpoint"
+            exit 1
+          fi
+          if ! missing=$(gh api "repos/$REPO/releases/latest" --jq '.assets[].name' | node tools/release-state.js missing); then
+            echo "::error::the release the updater reads is missing: $(echo $missing)"
+            exit 1
+          fi
+          echo "one release, it is the latest, and it carries every file the updater and a person checking a download read"
+
+  # The antivirus check, asked for by name.
+  #
+  # virustotal.yml listens for `release: published` as well, and that event never comes: this
+  # release was published by a workflow using GITHUB_TOKEN, and GitHub refuses to start
+  # workflows from events its own token created. So the file sat there active and correct, and
+  # on its first chance, 2.7.0, it did not run: the release was public with a changelog saying
+  # every release is scanned. A dispatch is an API call rather than an event, so it runs.
+  #
+  # A job of its own, after publish. It used to be the last step of publish, where it failed on
+  # 2.7.1 and 2.8.0-beta.1 alike: there is no checkout there, and gh looks for the repository in a
+  # .git that is not there unless it is told. A failed step failed publish, so the mirror, the beta
+  # feed and the Discord post were skipped, and the release that was already public reached neither
+  # the mirror nor Discord. Here a failed request is a red job and nothing more, and
+  # release-watch.yml asks again if nothing ran the check.
+  antivirus:
+    needs: [gate, publish]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Ask for the antivirus check on this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            if gh workflow run virustotal.yml --repo "$REPO" -f tag="$TAG"; then
+              echo "asked VirusTotal to look at $TAG"
+              exit 0
+            fi
+            sleep $((i * 20))
+          done
+          echo "::error::the antivirus check could not be asked for; release-watch.yml will ask again"
+          exit 1
 
   # A second place to get the update from.
   #
@@ -169,19 +589,17 @@ jobs:
   # because an app that fails to update looks like an app; it becomes visible on the day a
   # release fixes something urgent.
   #
-  # A job of its own, needing both builds, and that is the whole point of this block. It used to
-  # be the last step of the Windows job - which finishes before the Linux one starts, so it
-  # published the two Windows manifests and skipped the AppImage and latest-linux.yml every
-  # single time. `continue-on-error` then swallowed the two "not found" lines, and four releases
-  # went out with a mirror that had nothing on it for Linux. The thing issue #9 asked for by
-  # name was the one thing it never carried.
+  # After publish, and so after both builds were tried: installed copies read the mirror when
+  # GitHub does not answer, so a file there is as public as the release itself. A beta goes there
+  # too, under -beta names, so it can never stand where the installer latest.yml describes.
   #
-  # Only the current version is kept there, so this costs about 320 MB of the bucket rather than
-  # 320 MB per release for ever. Old versions stay on GitHub, which is where anybody looking for
-  # one goes. A failure here still does not fail the release: the update is published, and a
-  # mirror that is a version behind is a worse mirror rather than a broken release.
+  # --current puts the whole folder in the state GitHub is in, the release and a newer beta
+  # together, rather than uploading this one version: a run that was skipped once (2.7.1) left the
+  # mirror a version behind until the next release. It reads back what the mirror serves, by version
+  # and by size, and a mirror still wrong after that is a red job here and a repair for
+  # release-watch.yml, which runs as soon as this workflow ends.
   mirror-update:
-    needs: [build, linux]
+    needs: [gate, publish]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
@@ -190,43 +608,27 @@ jobs:
         with:
           node-version: 24
 
-      - name: Publish the release to the update mirror
-        continue-on-error: true
+      - name: Bring the update mirror to what GitHub serves now
         env:
-          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: node tools/r2-release.mjs "${TAG#v}"
-
-      # Skipping an asset is how this went unnoticed for four releases, so the run says out loud
-      # what the mirror ended up holding. It does not fail the release; it fails this job, which
-      # is a red mark next to a green release and exactly the right loudness.
-      - name: Check the mirror carries both platforms
-        env:
-          BASE: https://cdn.dota2modmanager.com/updates
-        run: |
-          set -euo pipefail
-          missing=0
-          for want in latest.yml latest-linux.yml portable.yml \
-                      Dota-2-Mod-Manager-Setup.exe Dota-2-Mod-Manager-Portable.exe \
-                      Dota-2-Mod-Manager.AppImage; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -I "$BASE/$want")
-            if [ "$code" = "200" ]; then
-              echo "ok      $want"
-            else
-              echo "::error::$want is not on the update mirror (HTTP $code)"
-              missing=$((missing + 1))
-            fi
-          done
-          [ "$missing" -eq 0 ]
+        run: node tools/r2-release.mjs --current
 
   # Notify Discord after the release is published. This lives in the same workflow as the
   # build because a release published by the default GITHUB_TOKEN does NOT trigger a separate
   # "on: release" workflow (GitHub blocks token-triggered workflows to avoid recursion).
+  # A beta is not announced: the people it is for were picked by name and the app offers it to
+  # them. A post in the public channel about a build nobody else can install is noise at best.
+  #
+  # After the mirror, so the post does not send people to an update the mirror does not carry yet,
+  # and whatever the mirror did: on 2.7.1 a failure in a job before this one kept the release out of
+  # Discord altogether. A mirror a version behind is release-watch.yml's to put right; a release
+  # nobody hears about is worse.
   notify:
-    needs: [build, linux, mirror-update]
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [gate, publish, mirror-update]
+    if: always() && needs.publish.result == 'success' && needs.gate.outputs.beta != 'true'
     runs-on: ubuntu-latest
     # editing the release body needs write; the default for a job is the repo's own
     # setting, which is read-only here (v1.12.0 shipped with an empty page because of it)
@@ -234,6 +636,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
       # The build job now opens the release with its notes already on it, so this reads the
       # same section again for the Discord post and only touches the page if it somehow came
       # out empty. `gh release edit` sends the tag with the change and GitHub refuses that
@@ -249,7 +654,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           awk -v v="${TAG#v}" '
-            $0 ~ "^## " v "([^0-9.]|$)" { on = 1; next }
+            $0 ~ "^## " v "([^-0-9A-Za-z.]|$)" { on = 1; next }
             on && /^## / { exit }
             on { print }
           ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
@@ -257,6 +662,8 @@ jobs:
             echo "::warning::CHANGELOG.md has no section for $TAG - the release page stays empty"
             exit 0
           fi
+          # the same last line as the draft got (SIGNING_POLICY in tools/release-state.js)
+          { echo; echo '[Code signing policy](https://dota2modmanager.com/code-signing/)'; } >> notes.md
           id=$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.id')
           have=$(gh api "repos/$REPO/releases/$id" --jq '.body | length')
           if [ "$have" = "0" ]; then
@@ -266,6 +673,10 @@ jobs:
             echo "release already carries its notes"
           fi
 
+      # The post is built by tools/release-state.js, which cuts the notes by characters: `head -c`
+      # counted bytes and could stop in the middle of a letter. curl fails on an answer Discord
+      # refuses, which it did not before: a deleted webhook would have answered 404 and the job
+      # would have gone green.
       - name: Send Discord notification
         env:
           WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -273,28 +684,31 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          NAME=$(gh release view "$TAG" --repo "$REPO" --json name -q '.name' 2>/dev/null)
-          URL=$(gh release view "$TAG" --repo "$REPO" --json url -q '.url' 2>/dev/null)
+          set -euo pipefail
+          [ -n "$WEBHOOK_URL" ] || { echo "::error::DISCORD_WEBHOOK_URL is not set"; exit 1; }
+          NAME=$(gh release view "$TAG" --repo "$REPO" --json name -q '.name' 2>/dev/null || true)
+          URL=$(gh release view "$TAG" --repo "$REPO" --json url -q '.url' 2>/dev/null || true)
           [ -z "$NAME" ] && NAME="$TAG"
           [ -z "$URL" ] && URL="https://github.com/$REPO/releases/tag/$TAG"
-          # Discord caps an embed description at 4096 characters
-          NOTES=$(head -c 3200 notes.md 2>/dev/null)
-          [ -z "$NOTES" ] && NOTES="A new release has been published!"
-          PAYLOAD=$(jq -n \
-            --arg name "$NAME" \
-            --arg url "$URL" \
-            --arg notes "$NOTES" \
-            '{
-              "content": "**Mod Manager Updated!**",
-              "embeds": [
-                {
-                  "title": $name,
-                  "url": $url,
-                  "description": "\($notes)\n\n[**Open Release Page**](\($url))",
-                  "color": 8585067
-                }
-              ],
-              "username": "GitHub",
-              "avatar_url": "https://i.postimg.cc/zGJTFHyj/github.webp"
-            }')
-          curl -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
+          node tools/release-state.js discord notes.md "$NAME" "$URL" > payload.json
+          curl --fail-with-body --silent --show-error --retry 4 --retry-all-errors --retry-delay 15 \
+            -H "Content-Type: application/json" -d @payload.json "$WEBHOOK_URL?wait=true" > /dev/null
+          echo "posted $TAG to Discord"
+
+      # The line release-watch.yml reads to know the post went out, where nothing renders it. A
+      # failure here only means the watch sees no line and asks the job below: it reads the job's
+      # result as well, so the post is not sent twice.
+      - name: Note in the release that it was announced
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.id')
+          gh api "repos/$REPO/releases/$id" --jq '.body // ""' > body.md
+          if ! grep -qF '<!-- announced in Discord -->' body.md; then
+            { echo; echo; echo '<!-- announced in Discord -->'; } >> body.md
+            gh api --method PATCH "repos/$REPO/releases/$id" --field body=@body.md > /dev/null
+          fi

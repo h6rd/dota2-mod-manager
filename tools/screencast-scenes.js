@@ -21,6 +21,12 @@
  * until the install scene fills it, exactly as it is for somebody who just downloaded this.
  */
 
+/**
+ * @typedef {{ move?: string|number[], click?: string|number[], hover?: string|number[], wheel?: number,
+ *   type?: string, wait?: number, eval?: string, dur?: number, after?: number, settle?: number,
+ *   hold?: number, steps?: number, gap?: number }} Step
+ */
+
 const js = (cast, expr) => cast.win.webContents.executeJavaScript(expr);
 const nap = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -104,6 +110,7 @@ const filter = [
 // 3. Collecting. One set for each of ten different heroes, then a cursor and a terrain.
 // ---------------------------------------------------------------------------------------
 function collect() {
+  /** @type {Step[]} */
   const steps = [{ wait: 500 }];
   // the first four at a readable pace, so the move is legible
   for (const h of HEROES.slice(0, 4)) steps.push(...findAndAdd(h));
@@ -161,6 +168,7 @@ async function mine(cast, log) {
   log(`library: ${JSON.stringify(found)}`);
   if (!found) return [{ wait: 800 }];
 
+  /** @type {Step[]} */
   const steps = [
     { wait: 900 },
     { move: [680, 380], dur: 700, after: 500 },
@@ -179,4 +187,53 @@ async function mine(cast, log) {
   return steps;
 }
 
-module.exports = { showcase, browse, filter, collect, install, mine };
+/* The three motions on the catalog, filmed for a person to judge: the rail's highlight travelling
+ * between categories, the cards of a category moving to their places as chips narrow it, and a mod
+ * window growing out of the card it was opened from. Not part of the story above (MM_SCENE=motion). */
+const motion = [
+  { wait: 700 },
+  { click: '.rail-item[data-cat="terrains"]', after: 1100 },
+  { click: '.rail-item[data-cat="hero-items"]', after: 1100 },
+  { click: '.rail-item[data-cat="couriers"]', after: 1100 },
+  { click: '.rail-item[data-cat="hero-items"]', after: 1300 },
+  { click: '.rail-item[data-cat="heroes"]', after: 1300 },
+  { click: '.fchip[data-tag="anime"]', after: 1600 },
+  { click: '.fchip[data-tag="anime"]', after: 1600 },
+  { click: '#installedChip', after: 1600 },
+  { click: '#installedChip', after: 1600 },
+  { click: '.rail-item[data-cat="terrains"]', after: 1300 },
+  { hover: '.grid .card:nth-child(2 of .card)', hold: 500 },
+  { click: '.grid .card:nth-child(2 of .card) .card-name', after: 1600 },
+  { eval: "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))", after: 800 },
+  { hover: '.grid .card:nth-child(9 of .card)', hold: 400 },
+  { click: '.grid .card:nth-child(9 of .card) .card-name', after: 1600 },
+  { eval: "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))", after: 900 },
+];
+
+/* The motions of My mods, filmed for a person to judge (MM_SCENE=library): a mod moved in the load
+ * order from its menu, and back; a search that narrows the list and lets it go; a pack opened and
+ * closed; a mod removed. Needs a library to show: the sandbox seeded with a few mods and a pack. */
+const rowMenu = (n) => `(() => { const r = document.querySelectorAll('#libList .lib-row[data-row]')[${n}].getBoundingClientRect();
+  document.querySelectorAll('#libList .lib-row[data-row]')[${n}].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 360, clientY: r.top + 24 })); })()`;
+const library = [
+  { wait: 600 },
+  { click: '.tb-tab[data-view="library"]', after: 1500 },
+  { hover: '#libList .lib-row[data-row]:nth-child(3 of .lib-row)', hold: 400 },
+  { eval: rowMenu(2), after: 500 },
+  { click: '.ctx-menu .ctx-item:nth-child(1 of .ctx-item)', after: 1300 },
+  { hover: '#libList .lib-row[data-row]:nth-child(2 of .lib-row)', hold: 400 },
+  { eval: rowMenu(1), after: 500 },
+  { click: '.ctx-menu .ctx-item:nth-child(2 of .ctx-item)', after: 1400 },
+  { click: '#libSearch', after: 300 },
+  { type: 'emblem', gap: 90, after: 1500 },
+  { click: '#libSearchClear', after: 1500 },
+  { eval: "document.querySelector('#libList .pack-row').scrollIntoView({ block: 'center', behavior: 'smooth' })", after: 900 },
+  { click: '.pack-expand', after: 1400 },
+  { click: '.pack-expand', after: 1200 },
+  { eval: "document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' })", after: 900 },
+  { hover: '#libList .lib-row[data-row]:nth-child(3 of .lib-row) [data-del]', hold: 400 },
+  { click: '#libList .lib-row[data-row]:nth-child(3 of .lib-row) [data-del]', after: 700 },
+  { click: '.confirm-box [data-c="yes"]', after: 1800 },
+];
+
+module.exports = { showcase, browse, filter, collect, install, mine, motion, library };

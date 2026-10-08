@@ -1,9 +1,10 @@
 // DECISIONS.md, held to the repository it describes.
 //
-// That file answers reviews with numbers - how long main.js is, how many test files there are,
-// what the app depends on - and its whole argument is that a claim with a check next to it beats
-// a claim without one. A document like that going stale is worse than not having written it: the
-// next reviewer runs one command, finds it disagrees, and stops trusting the rest.
+// That file answers reviews with numbers - how long the main process's entry file is, how many
+// test files there are, what the app depends on - and its whole argument is that a claim with a
+// check next to it beats a claim without one. A document like that going stale is worse than not
+// having written it: the next reviewer runs one command, finds it disagrees, and stops trusting
+// the rest.
 //
 // So the countable claims are asserted here. Every failure message carries the current value, so
 // fixing one is copying a number across rather than going to find it.
@@ -23,25 +24,25 @@ const doc = fs.readFileSync(path.join(root, 'DECISIONS.md'), 'utf-8');
 /** How many lines a file in the repository has, counted the way `wc -l` counts them. */
 const lineCount = (file) => fs.readFileSync(path.join(root, file), 'utf-8').split('\n').length - 1;
 
-test('the line count it gives for main.js is roughly the line count main.js has', () => {
+test('the line count it gives for the main process is roughly the line count src/main.ts has', () => {
   /* "About 1,300" rather than an exact figure, and within a tenth rather than to the line. The
      claim being answered is "3,100 line monolith", which a rounded number settles just as well -
-     and an exact one turns every edit to main.js into a documentation chore, which is how the
+     and an exact one turns every edit to the entry file into a documentation chore, which is how the
      co-author count in this file came to fail a build for no reason anybody cared about. */
-  const real = lineCount('main.js');
-  const claimed = doc.match(/About ([\d,]+) lines since 2026-09-06/);
-  assert.ok(claimed, 'the corrections table no longer carries a line count for main.js');
+  const real = lineCount('src/main.ts');
+  const claimed = doc.match(/`src\/main\.ts`, about ([\d,]+) lines/);
+  assert.ok(claimed, 'the corrections table no longer carries a line count for the main process');
   const said = Number(claimed[1].replace(/,/g, ''));
   assert.ok(
     Math.abs(said - real) <= real / 10,
-    `DECISIONS.md says about ${claimed[1]} lines, main.js has ${real.toLocaleString('en-US')}`,
+    `DECISIONS.md says about ${claimed[1]} lines, src/main.ts has ${real.toLocaleString('en-US')}`,
   );
 });
 
 test('there are at least as many test files as the table claims', () => {
   // A floor, not a count. It answers "there are 25 test files" without needing an edit every
   // time somebody adds one, which happened three times in a day and failed the build each time.
-  const real = fs.readdirSync(path.join(root, 'test')).filter((f) => f.endsWith('.test.js')).length;
+  const real = fs.readdirSync(path.join(root, 'test')).filter((f) => /\.test\.(js|ts)$/.test(f)).length;
   const claimed = doc.match(/More than (\d+) of them, run on/);
   assert.ok(claimed, 'the corrections table no longer carries a test file count');
   assert.ok(real > Number(claimed[1]), `DECISIONS.md says more than ${claimed[1]} test files, test/ holds ${real}`);
@@ -58,15 +59,26 @@ test('the dependencies it names are the dependencies package.json declares', () 
     assert.ok(doc.includes(`\`${name}\``), `DECISIONS.md does not mention the dependency ${name}`);
   }
   assert.equal(ships.length, 2, `the entry says the app ships two dependencies, package.json declares ${ships.length}`);
-  assert.equal(builds.length, 3, `the entry says three more build and check it, package.json declares ${builds.length}`);
+  assert.equal(builds.length, 12, `the entry says twelve devDependencies in all, package.json declares ${builds.length}`);
 });
 
-test('the fingerprint index is still fetched from the path the entry says it cannot leave', () => {
-  // The claim is that the file cannot move out of the repository root because installed copies
-  // fetch it from main. If the URL ever changes, the entry becomes an argument for nothing.
-  const { FP_URL } = require('../src/fingerprints.js');
-  assert.match(FP_URL, /\/main\/fingerprints\.json$/, `src/fingerprints.js now fetches ${FP_URL}`);
+test('the fingerprint index is fetched from the branch the entry says the catalog job writes', () => {
+  // The entry says the job commits to catalog-data and the app reads from there. If the URL moves
+  // again, the entry is describing a branch nothing reads.
+  const { FP_URL } = require('../src/fingerprints.ts');
+  assert.match(FP_URL, /\/catalog-data\/fingerprints\.json$/, `src/fingerprints.ts now fetches ${FP_URL}`);
   assert.ok(doc.includes('`FP_URL`'), 'the entry no longer points at the constant that proves it');
+  const job = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'fingerprints.yml'), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(job, /ref: catalog-data/, 'the catalog job no longer checks out the branch the app reads');
+  // and nothing it does reaches main: one push, from the catalog-data checkout, and the code is
+  // checked out without credentials it could push with (the entry: "no longer writes to main")
+  const pushes = job.split('\n').filter((l) => /^\s*git push\b/.test(l));
+  assert.equal(pushes.length, 1, `the catalog job pushes ${pushes.length} times`);
+  const pushStep = job.slice(job.lastIndexOf('- name:', job.indexOf('git push')), job.indexOf('git push'));
+  assert.match(pushStep, /working-directory: data\n/, 'the push is not made from the catalog-data checkout');
+  const codeCheckout = job.slice(job.indexOf('uses: actions/checkout'), job.indexOf('ref: catalog-data'));
+  assert.match(codeCheckout, /persist-credentials: false/, 'the code checkout keeps credentials a push to main could use');
+  assert.doesNotMatch(codeCheckout, /ssh-key/, 'the code checkout carries the deploy key');
 });
 
 test('the three places that say how this is written still say it', () => {

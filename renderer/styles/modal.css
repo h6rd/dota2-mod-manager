@@ -22,13 +22,19 @@
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal-overlay.hidden { display: none; }
+/* React's layer and the islands of markup inside it take no room of their own
+   (catalog/modal/root.tsx): the window's styles see the same children they always did. */
+.modal-layer { display: contents; }
 .modal-overlay.closing { animation: fadeOut var(--dur-base) var(--ease-accelerate) both; }
 @keyframes fadeOut { to { opacity: 0; } }
 .modal-content {
+  /* what the close button (.modal-close) sits in. A transform left over by the entrance used to
+     do this by accident; once the window settles it has none, and the button flew to the corner */
+  position: relative;
   background: var(--surface-solid);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  width: min(700px, calc(92vw / var(--content-zoom)));
+  width: min(860px, calc(92vw / var(--content-zoom)));
   max-height: calc(88vh / var(--content-zoom));
   overflow-y: auto;
   box-shadow: var(--shadow), 0 0 60px color-mix(in srgb, var(--md-primary) 8%, transparent);
@@ -46,6 +52,13 @@
   }
 }
 @keyframes windowOut { to { opacity: 0; transform: scale(0.97); } }
+/* Opened from a card, the window is the card, grown: it starts as the card's own box, picture
+   where the card's picture was, and opens out to its place on one clock (catalog/modal-motion.ts).
+   The two CSS entrances above step aside for it: the frame's, and the picture's own grow, which
+   would be the second motion the old version was taken out for. */
+.modal-content.grows { animation: none; transform-origin: 0 0; }
+.modal-overlay.grows { animation: none; }
+.grows .modal-media img, .grows .modal-media video { animation: none; }
 
 .modal-media {
   aspect-ratio: 16 / 9;
@@ -153,6 +166,9 @@
   border-color: rgba(251, 191, 36, 0.32);
 }
 .modal-note.warn b { color: var(--warning); }
+.modal-field { display: flex; flex-direction: column; gap: 8px; }
+.modal-field-label { font-size: 12px; font-weight: 700; color: var(--text); }
+.modal-field .select-wrap { width: fit-content; }
 
 /* ============ Confirm dialog ============ */
 .confirm-overlay {
@@ -174,6 +190,11 @@
   width: min(400px, calc(88vw / var(--content-zoom)));
   box-shadow: var(--shadow), 0 0 50px color-mix(in srgb, var(--md-primary) 10%, transparent);
   animation: modalIn 0.28s var(--ease);
+  /* Never taller than the window. A 1366x768 laptop at 125% gives the app 582 px, and the safe
+     mode window was 668: its title went off the top and its buttons off the bottom. A box that
+     cannot fit scrolls instead (and the safe mode one gives up only its argument, below). */
+  max-height: calc((100vh - 2 * var(--space-5)) / var(--content-zoom));
+  overflow-y: auto;
 }
 .confirm-msg { font-size: 15px; font-weight: 600; margin-bottom: 20px; line-height: 1.5; }
 /* wraps rather than spilling out of the box when labels are long (RU labels are) */
@@ -468,7 +489,14 @@ audio::-webkit-media-controls-panel { background: var(--surface-solid); }
    does today and sits quiet, the card below is what it will do and is lit, and a short rule
    runs from one to the other. The shields are the status bar switch's own icons, so the
    window also shows what the thing being flipped looks like afterwards. */
-.safe-box { width: min(600px, calc(92vw / var(--content-zoom))); text-align: left; }
+.safe-box {
+  width: min(600px, calc(92vw / var(--content-zoom)));
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+}
+.safe-box > * { flex-shrink: 0; }
 .safe-title {
   font-family: var(--font-head);
   font-size: var(--text-lg);
@@ -477,9 +505,12 @@ audio::-webkit-media-controls-panel { background: var(--surface-solid); }
   margin-bottom: var(--space-5);
 }
 /* The argument scrolls; the warning and the buttons under it never do. On a short window the
-   two state cards are what gets cut, and they are the part somebody can scroll back to. */
+   two state cards are what gets cut, and they are the part somebody can scroll back to. It takes
+   the height the rest leaves, where a share of the window's height left the rest too little. */
 .safe-body {
-  max-height: min(calc(56vh / var(--content-zoom)), 480px);
+  flex-shrink: 1;
+  min-height: var(--space-7);
+  max-height: 480px;
   overflow-y: auto;
   padding-right: var(--space-2);
 }

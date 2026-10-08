@@ -1,36 +1,55 @@
 {
   "name": "dota2-mod-manager",
   "productName": "Dota 2 Mod Manager",
-  "version": "2.6.11",
+  "version": "2.9.0",
   "description": "Desktop mod manager for Dota 2 — browse, install, toggle and preset 1100+ cosmetic mods from the D2PFX catalog",
-  "main": "main.js",
+  "main": "src/main.ts",
   "scripts": {
-    "start": "electron .",
+    "start": "node tools/ui-build.mjs && electron .",
+    "dev": "node tools/dev.mjs",
+    "build:ui": "node tools/ui-build.mjs --force",
     "dist": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
-    "test": "node --test \"test/**/*.test.js\"",
+    "test": "node --test \"test/**/*.test.js\" \"test/**/*.test.ts\"",
     "lint": "eslint .",
-    "verify": "npm run lint && npm run test:coverage",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=74 --test-coverage-branches=76 --test-coverage-functions=72 \"test/**/*.test.js\"",
+    "typecheck": "node tools/typecheck.mjs",
+    "size": "node tools/size-budget.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run size && npm run test:coverage",
+    "test:coverage": "node tools/coverage.mjs",
     "sandbox:seed": "node tools/sandbox.js seed",
     "sandbox:reset": "node tools/sandbox.js reset",
     "sandbox:status": "node tools/sandbox.js status",
-    "start:sandbox": "electron . --user-data-dir=sandbox/userdata",
-    "docs": "node tools/gen-api-docs.js && node tools/gen-doc-facts.js",
+    "start:sandbox": "node tools/ui-build.mjs && node tools/sandbox.js pin && electron . --user-data-dir=sandbox/userdata",
+    "e2e": "node tools/e2e.mjs",
+    "sim": "node tools/sim/run.mjs",
+    "dota:diff": "node tools/dota-diff.mjs",
+    "fuzz": "node tools/fuzz-parsers.mjs",
+    "mutate": "node tools/mutate.mjs",
+    "rollback": "node tools/rollback.mjs",
+    "docs": "node tools/gen-api-docs.js && node tools/gen-doc-facts.js && node tools/gen-incidents.js",
     "docs:check": "node tools/gen-api-docs.js --check",
     "aur": "node tools/gen-aur.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheFleece/dota2-mod-manager.git"
+    "url": "https://github.com/dota2modmanager/dota2-mod-manager.git"
   },
-  "author": "Mykhailo Lynnyk",
+  "author": "TheFleece",
   "license": "GPL-3.0-or-later",
-  "homepage": "https://github.com/TheFleece/dota2-mod-manager",
+  "homepage": "https://github.com/dota2modmanager/dota2-mod-manager",
   "devDependencies": {
-    "electron": "^44.3.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
-    "eslint": "^10.10.0"
+    "eslint": "^10.11.0",
+    "fast-check": "^4.10.2",
+    "motion": "^13.4.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
@@ -41,17 +60,19 @@
     "productName": "Dota 2 Mod Manager",
     "icon": "build/icon.ico",
     "files": [
-      "main.js",
       "preload.js",
       "preload-uninstall.js",
       "src/**/*",
+      "!src/tsconfig.json",
       "renderer/**/*",
+      "out/renderer/**/*",
       "package.json",
       "CHANGELOG.md",
       "CHANGELOG.ru.md",
       "LICENSE",
       "NOTICE"
     ],
+    "beforePack": "./tools/before-pack.cjs",
     "protocols": [
       {
         "name": "Dota 2 Mod Manager preset",
@@ -100,7 +121,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "TheFleece",
+      "owner": "dota2modmanager",
       "repo": "dota2-mod-manager",
       "releaseType": "release"
     }
