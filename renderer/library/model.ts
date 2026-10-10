@@ -15,6 +15,8 @@ export interface Tag {
 export type Thumb =
   | { url: string; video: boolean }
   | { key: string; icon: string | null }
+  /** the arcana the app built, its picture out of the game in the colour it was built in */
+  | { arcana: [number, number, number] }
   | { icon: string | null };
 
 export interface RowModel {
@@ -110,6 +112,8 @@ export interface BannersModel {
   prelaunch: boolean;
   /** fonts and cursors Steam put back, with no archive left to reinstall from */
   stuck: string[];
+  /** catalog mods whose author published a new version, by name (src/mod-update.ts) */
+  updates: string[];
   repair: RepairState;
 }
 

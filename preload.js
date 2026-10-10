@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('api', {
     unpackToFolder: (id) => ipcRenderer.invoke('mods:unpackToFolder', id),
     // the pre-patch mark off one mod, once its owner checked it in the game
     clearPrePatch: (id) => ipcRenderer.invoke('mods:clearPrePatch', id),
+    // a catalog mod brought to the catalog's current version, in its own slot
+    update: (id) => ipcRenderer.invoke('mods:update', id),
     importDialog: () => ipcRenderer.invoke('mods:importDialog'),
     importFolderDialog: () => ipcRenderer.invoke('mods:importFolderDialog'),
     importPaths: (paths) => ipcRenderer.invoke('mods:importPaths', paths),
@@ -85,6 +87,11 @@ contextBridge.exposeInMainWorld('api', {
     heroPortraitsByName: (names) => ipcRenderer.invoke('cosmetics:heroPortraitsByName', names),
     pick: (slot, itemId, itemName, effectId) => ipcRenderer.invoke('cosmetics:pick', slot, itemId, itemName, effectId),
     pickSet: (setId) => ipcRenderer.invoke('cosmetics:pickSet', setId),
+  },
+  // the arcana built out of the game's own files, in a colour of the user's
+  arcana: {
+    state: () => ipcRenderer.invoke('arcana:state'),
+    install: (color, mode) => ipcRenderer.invoke('arcana:install', color, mode),
   },
   // a mod's own video, and the still the window decodes out of it
   preview: {
