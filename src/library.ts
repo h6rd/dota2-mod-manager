@@ -2,7 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { LibFile, LibRecord, ModIdentity, Preset, PackMember, PresetEntry } from './types.ts';
+import type { LibFile, LibRecord, ModIdentity, Preset, PackMember, PresetEntry, PresetPick } from './types.ts';
+import { writeFileAtomic } from './atomic-file.ts';
+import { FileTx } from './file-tx.ts';
 
 /** A record as far as telling mods apart goes. No category means an import. */
 type ModLike = { name: string; categoryId?: string; styleLabel?: string | null; fp?: string | null };
@@ -44,10 +46,25 @@ export class Library {
     }
   }
 
+  /**
+   * Write the manifest. Inside a FileTx.run block the write is one more step of that change, so
+   * a mod's record and its files commit together or not at all - an install killed after its
+   * paks but before its record left paks the library did not know. Undone, the record goes back
+   * on the disk and here too. Outside one, the file is replaced in one step (src/atomic-file.ts).
+   */
   save(): void {
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2));
+    const text = JSON.stringify(this.data, null, 2);
+    const tx = FileTx.open();
+    if (tx) {
+      // before the write: a write refused on its first try has changed this.data already
+      tx.onUndo(this.#reload);
+      tx.write(this.file, text);
+      return;
+    }
+    writeFileAtomic(this.file, text);
   }
+
+  #reload = (): void => this.load();
 
   list(): LibRecord[] {
     return this.data.installed;
@@ -136,14 +153,25 @@ export class Library {
     return this.data.presets;
   }
 
-  /* A preset is a set of mods, and a free cosmetic is not one: it owns no file and no pak
-   * slot, it is a pick written into the item table, and it exists only while safe mode is
-   * off. Folding the two together is what made applying a build silently strip somebody's
-   * courier and wards - they were never in the preset, so the apply turned them off. The
-   * picks are left alone by everything here; the Library is where they are managed. */
+  /* A preset's mods, and a free cosmetic is not one of them: it owns no file and no pak slot,
+   * it is a pick written into the item table, and it exists only while safe mode is off. Folding
+   * the two together is what made applying a build silently strip somebody's courier and wards:
+   * they were not in the preset, so the apply turned them off. A preset keeps its looks apart,
+   * slot by slot (picksOn), and puts back only the slots it names. */
   static inPreset(rec: Pick<LibRecord, 'categoryId'> | null | undefined): boolean {
     return !!rec && rec.categoryId !== 'cosmetic';
   }
+
+  /* The looks that are on, as a preset keeps them (issue #284): slot by slot, apart from the mods,
+   * because applying a preset puts each of them on in its slot and leaves the slots it does not
+   * name as they are. A courier picked after the preset was saved stays on. */
+  picksOn(): PresetPick[] {
+    return this.data.installed.filter((m) => m.enabled !== false && Library.isPick(m)).map(Library.pickOf);
+  }
+
+  /** A look on the library's books (a cosmetic record with a slot and an item), and the look as a preset keeps it. */
+  static isPick = (rec: LibRecord | null | undefined): rec is LibRecord => !!rec && rec.categoryId === 'cosmetic' && !!rec.slot && !!rec.itemId;
+  static pickOf = (rec: LibRecord): PresetPick => ({ slot: String(rec.slot), itemId: String(rec.itemId), name: rec.name, effectId: String(rec.effectId || '') });
 
   /* What a preset remembers about one mod: the same self-contained identity that already
    * travels inside a .d2mm (see src/preset-share.ts), so what is stored and what is shared
@@ -169,15 +197,17 @@ export class Library {
   savePreset(name: string): void {
     const enabled = this.data.installed.filter((m) => m.enabled && Library.inPreset(m));
     const mods = enabled.map(Library.identityOf);
+    const picks = this.picksOn();
     // never fold today's state into a shared preset waiting to be installed — same name,
     // completely different thing
     const existing = this.data.presets.find((p) => p.name === name && !p.wanted);
     if (existing) {
       existing.mods = mods;
+      existing.picks = picks;
       delete existing.modIds;
       existing.updatedAt = Date.now();
     } else {
-      this.data.presets.push({ id: crypto.randomUUID(), name, mods, updatedAt: Date.now() });
+      this.data.presets.push({ id: crypto.randomUUID(), name, mods, picks, updatedAt: Date.now() });
     }
     this.save();
   }
@@ -188,6 +218,7 @@ export class Library {
     const p = this.getPreset(presetId);
     if (!p || p.wanted) return null;
     p.mods = this.data.installed.filter((m) => m.enabled && Library.inPreset(m)).map(Library.identityOf);
+    p.picks = this.picksOn();
     delete p.modIds;
     p.updatedAt = Date.now();
     this.save();

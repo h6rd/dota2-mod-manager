@@ -34,6 +34,8 @@ import { isUninstallRun } from './uninstall-args.ts';
 import { createGate } from './feature-gate.ts';
 import { settingsViewFor } from './settings-view.ts';
 import { registerIpc } from './ipc.ts';
+import { guardTheApp } from './window-guard.ts';
+import { jailLogTo, jailRoots, jailThisRun } from './write-jail.ts';
 import { createAppLog } from './app-log.ts';
 import { releaseNotes } from './release-notes.ts';
 import { firstLink, handleDeepLink, installDesktopEntry } from './deep-links.ts';
@@ -43,7 +45,10 @@ import { createGameUpkeep, dotaIsRunning } from './game-upkeep.ts';
 import type { AppContext, AppProgress } from './app-context.ts';
 import type { BrowserWindow } from 'electron';
 
-const { app, ipcMain, shell, net } = electron();
+const { app, ipcMain, shell, net, session } = electron();
+
+// a sandbox run (--write-jail=<folder>) writes nowhere else, from its first write on (src/write-jail.ts)
+jailThisRun(process.argv, process.env);
 
 /** electron-updater, which a development checkout may not have installed yet. */
 type AutoUpdater = UpdaterLike & { quitAndInstall(): void };
@@ -89,6 +94,7 @@ const IS_UNINSTALL = isUninstallRun(process.argv);
 // the problem live (src/app-log.ts). MM_DIAG mirrors it for the screenshot harness.
 const appLog = createAppLog({ dir: () => app.getPath('userData'), mirror: process.env.MM_DIAG || null });
 const diag = (msg: string) => appLog.diag(msg);
+jailLogTo(diag);
 
 process.on('uncaughtException', (err) => diag(`uncaughtException: ${err?.stack || err}`));
 process.on('unhandledRejection', (reason) => diag(`unhandledRejection: ${(reason as Error | null)?.stack || reason}`));
@@ -100,8 +106,8 @@ const windowOpen = () => (win && !win.isDestroyed() ? win : null);
 // to park it in. Assigned once the services exist.
 let presets: ReturnType<typeof createServices>['presets'] | null = null;
 
-// A preset link clicked anywhere on the system (src/deep-links.ts): parked in Presets, never
-// installed from the link itself.
+// A preset or mod link clicked anywhere on the system (src/deep-links.ts): a preset is parked in
+// Presets, a mod opens in the catalog, and nothing is installed from the link itself.
 const takeLink = (url: string | null | undefined) => handleDeepLink(url, {
   importPresetLink: (code) => presets?.importPresetLink(code) ?? null,
   win: windowOpen,
@@ -132,6 +138,10 @@ async function start(): Promise<void> {
   diag('whenReady');
   const userData = app.getPath('userData');
   const appRoot = app.getAppPath();
+
+  // Before any channel is registered or any window opened: every call into this process comes
+  // from the top frame of one of the app's two pages, with arguments that fit (src/window-guard.ts).
+  guardTheApp({ app, ipcMain, session, appRoot, devUrl: process.env.MM_DEV_URL, log: diag });
   const sendProgress = (evt: AppProgress) => windowOpen()?.webContents.send('progress', evt);
 
   const services = createServices({ userData, appVersion: () => app.getVersion(), sendProgress, diag, fetchIcons: net.fetch });
@@ -219,7 +229,9 @@ async function start(): Promise<void> {
   registerIpc(ctx);
   // Launch Dota through Steam so the user's own launch options apply (-novid, -fps max, -language
   // russian all differ per user). rungameid is what pressing Play in Steam does.
-  ipcMain.handle('game:launch', () => {
+  ipcMain.handle('game:launch', async () => {
+    // an item table still being built (a pick a moment ago, a base just come) goes in first
+    await schemaService.settled();
     // a Dota update wipes the search-path patch and moves the item table underneath our build:
     // the launch button is the last chance to notice before the game starts
     schemaService.heal();
@@ -229,8 +241,8 @@ async function start(): Promise<void> {
 
   // only the installed build claims the scheme: a dev run must not point the system's d2mm://
   // handler at a local electron binary
-  if (app.isPackaged) {
-    installDesktopEntry({ platform: process.platform, exe: process.env.APPIMAGE || process.execPath, home: app.getPath('home'), diag });
+  if (app.isPackaged && !jailRoots().length) {
+    installDesktopEntry({ platform: process.platform, exe: process.env.APPIMAGE || process.execPath, home: app.getPath('home'), icon: path.join(appRoot, 'build', 'icon.png'), diag });
     app.setAsDefaultProtocolClient(SCHEME);
   }
 
@@ -254,8 +266,9 @@ async function start(): Promise<void> {
   /* Auto-update, packaged builds only. src/updater.ts holds it, including which channel this copy
      reads: the stable one, or the beta for an account the signed config names. The channel is a
      function rather than a value, so a tester taken off that list is back on stable at the next
-     check. */
-  if (autoUpdater && app.isPackaged) {
+     check. A run held to a sandbox (src/write-jail.ts) is a test, and does not update itself:
+     electron-updater keeps its cache in %LOCALAPPDATA%, outside any sandbox. */
+  if (autoUpdater && app.isPackaged && !jailRoots().length) {
     updater = createUpdater({
       autoUpdater,
       isPortable: IS_PORTABLE,

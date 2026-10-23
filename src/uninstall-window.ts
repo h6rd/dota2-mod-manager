@@ -74,7 +74,7 @@ export function uninstallFlow({ settings, library, installer, schemaService, dia
       patched: !!settings.get('schemaPatch'),
       gamePath: settings.get('dotaGamePath') || null,
       dataBytes: folderSize(app.getPath('userData')),
-      lang: settings.get('uiLang') === 'ru' ? 'ru' : 'en',
+      lang: settings.get('uiLang') === 'ru' ? 'ru' : settings.get('uiLang') === 'zh-CN' ? 'zh-CN' : 'en',
     };
   };
 
@@ -125,6 +125,7 @@ export function uninstallFlow({ settings, library, installer, schemaService, dia
         preload: path.join(appRoot, 'preload-uninstall.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
       },
     });
     w.loadFile(path.join(appRoot, 'renderer', 'uninstall.html'));

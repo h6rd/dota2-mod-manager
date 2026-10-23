@@ -41,6 +41,19 @@ test('effects are written in the order the slot offers them, and read back as a 
   assert.deepEqual(liveEffects(null), []);
 });
 
+test("a style rides last in the pick, is read back apart from the effects, and changing it is the button's to save", async () => {
+  const { effectKey, liveEffects, liveStyle, stagedItemAction } = await load();
+  assert.equal(effectKey(effects, ['snow', 'fire'], 2), 'fire,snow,style-2');
+  assert.equal(effectKey(effects, [], 0), '', 'the first style is no token, as picks were before styles');
+  const live = { itemId: '42', name: 'Bracers', effectId: 'fire,style-1' };
+  assert.deepEqual(liveEffects(live), ['fire'], 'the style is not an effect');
+  assert.equal(liveStyle(live), 1);
+  assert.equal(liveStyle({ effectId: 'fire' }), 0);
+  assert.equal(stagedItemAction(effects, live, { ...staged('42', ['fire']), style: 1 }).off, true, 'what is on already');
+  assert.equal(stagedItemAction(effects, live, { ...staged('42', ['fire']), style: 2 }).label, 'Сохранить стиль');
+  assert.equal(stagedItemAction(effects, live, { ...staged('42', []), style: 2 }).label, 'Сохранить эффекты', 'both changed: one button saves both');
+});
+
 test('a set is found by its own name or by a piece, and says only what tells something', async () => {
   const { matchingSets, setCardMeta, setCount, setIsOn } = await load();
   const piece = (slot, itemId, name, fits = true) => ({ slot, itemId, name, fits });
@@ -76,4 +89,21 @@ test('a hero\'s card says what is on it rather than how many slots it has', asyn
   assert.equal(heroCardMeta(abaddon, [set, set, set], none), '3 набора');
   assert.equal(heroCardMeta(abaddon, [set], (s) => (s === 'a:back' ? { itemId: '9' } : null)), 'Изменено 1 из 2');
   assert.equal(heroCardMeta(abaddon, [set], (s) => (s === 'a:head' ? { itemId: '1' } : null)), 'Arsenal', 'a worn set is named');
+});
+
+test('a hero with a persona on shows its persona\'s slots alone, and one without its plain slots', async () => {
+  const { withPersonas } = await load();
+  const slots = [
+    { slot: 'item:pudge:weapon', heroIds: ['pudge'], options: [] },
+    { slot: 'item:pudge:persona_selector', heroIds: ['pudge'], options: [], persona: { hero: 'pudge', part: false } },
+    { slot: 'item:pudge:weapon_persona_1', heroIds: ['pudge'], options: [], persona: { hero: 'pudge', part: true } },
+    { slot: 'item:axe:weapon', heroIds: ['axe'], options: [] },
+    { slot: 'weather', options: [] },
+  ];
+  const shown = (picked) => withPersonas(slots, (s) => (picked.includes(s) ? { itemId: '1' } : null)).map((s) => s.slot);
+  assert.deepEqual(shown([]), ['item:pudge:weapon', 'item:pudge:persona_selector', 'item:axe:weapon', 'weather'],
+    'no persona: the plain slots and the one to pick a persona in');
+  assert.deepEqual(shown(['item:pudge:persona_selector']), ['item:pudge:persona_selector', 'item:pudge:weapon_persona_1', 'item:axe:weapon', 'weather'],
+    "the Toy Butcher on: Pudge's plain weapon goes, the persona's comes, other heroes stay");
+  assert.deepEqual(shown(['item:pudge:weapon']), shown([]), 'a plain pick is no persona');
 });

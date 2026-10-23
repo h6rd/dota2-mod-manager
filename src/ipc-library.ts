@@ -13,6 +13,7 @@ import { isMinifyPak } from './minify.ts';
 import { touchesSchema } from './presets-service.ts';
 import { electron } from './electron.ts';
 import { errorText } from './error-text.ts';
+import { FileTx } from './file-tx.ts';
 import type { AppContext } from './app-context.ts';
 import type { LibRecord } from './types.ts';
 
@@ -37,17 +38,30 @@ export function registerLibraryIpc({
     }
   });
 
-  ipcMain.handle('mods:setEnabled', (e, id, enabled) => {
+  /** A mod's files and its record go together, or neither does. */
+  const removeOne = (rec: LibRecord) => FileTx.run(() => {
+    if (rec.kind === 'pack') installer.removePackFully(rec);
+    else installer.remove(rec.files, { recId: rec.id, deployed: rec.enabled !== false });
+    library.removeRecord(rec.id);
+  }, installer.log);
+
+  ipcMain.handle('mods:setEnabled', async (e, id, enabled) => {
     const rec = library.find(id);
     if (!rec) return { error: t('Мод не найден') };
     try {
-      // only one cursor set — and only one look per cosmetic slot — can be live at a time
-      const replaced = enabled && isCursorRecord(rec) ? disableOtherCursors(id)
-        : enabled && rec.categoryId === 'cosmetic' ? disableOtherCosmetics(rec)
-          : [];
-      installer.setEnabled(rec.files, enabled, rec.id);
-      library.setEnabled(id, enabled);
-      if (touchesSchema(rec)) schemaService.refresh();
+      // One change: the other set switched off, this one on, and both records. A failure on the
+      // last rename leaves the folder and the library as they were, not the old set off and the
+      // new one still off too.
+      const replaced = FileTx.run(() => {
+        // only one cursor set — and only one look per cosmetic slot — can be live at a time
+        const others = enabled && isCursorRecord(rec) ? disableOtherCursors(id)
+          : enabled && rec.categoryId === 'cosmetic' ? disableOtherCosmetics(rec)
+            : [];
+        installer.setEnabled(rec.files, enabled, rec.id);
+        library.setEnabled(id, enabled);
+        return others;
+      }, installer.log);
+      if (touchesSchema(rec)) await schemaService.refreshInBackground();
       return { ok: true, replaced };
     } catch (err) {
       return { error: errorText(err) };
@@ -63,7 +77,7 @@ export function registerLibraryIpc({
    * hung. Deleting the files themselves was never the slow part: that is about two
    * milliseconds each.
    */
-  ipcMain.handle('mods:removeMany', (e, ids) => {
+  ipcMain.handle('mods:removeMany', async (e, ids) => {
     const errors: string[] = [];
     let removed = 0;
     let schemaTouched = false;
@@ -71,23 +85,21 @@ export function registerLibraryIpc({
       const rec = library.find(id);
       if (!rec) continue;
       try {
-        if (rec.kind === 'pack') installer.removePackFully(rec);
-        else installer.remove(rec.files, { recId: rec.id, deployed: rec.enabled !== false });
-        library.removeRecord(id);
+        removeOne(rec);
         if (touchesSchema(rec)) schemaTouched = true;
         removed++;
       } catch (err) {
         errors.push(`${rec.name}: ${errorText(err)}`);
       }
     }
-    if (schemaTouched) schemaService.refresh();
+    if (schemaTouched) await schemaService.refreshInBackground();
     return { ok: true, removed, errors };
   });
 
   // Same bargain for switching a selection on or off: one rebuild for the batch, not one
   // per mod. Cursors and cosmetics are left out because only one of each can be live and
   // the screen never offers them here.
-  ipcMain.handle('mods:setEnabledMany', (e, ids, enabled) => {
+  ipcMain.handle('mods:setEnabledMany', async (e, ids, enabled) => {
     const errors: string[] = [];
     let changed = 0;
     let schemaTouched = false;
@@ -95,15 +107,17 @@ export function registerLibraryIpc({
       const rec = library.find(id);
       if (!rec || rec.enabled === !!enabled) continue;
       try {
-        installer.setEnabled(rec.files, !!enabled, rec.id);
-        library.setEnabled(id, !!enabled);
+        FileTx.run(() => {
+          installer.setEnabled(rec.files, !!enabled, rec.id);
+          library.setEnabled(id, !!enabled);
+        }, installer.log);
         if (touchesSchema(rec)) schemaTouched = true;
         changed++;
       } catch (err) {
         errors.push(`${rec.name}: ${errorText(err)}`);
       }
     }
-    if (schemaTouched) schemaService.refresh();
+    if (schemaTouched) await schemaService.refreshInBackground();
     return { ok: true, changed, errors };
   });
 
@@ -135,14 +149,12 @@ export function registerLibraryIpc({
     }
   });
 
-  ipcMain.handle('mods:remove', (e, id) => {
+  ipcMain.handle('mods:remove', async (e, id) => {
     const rec = library.find(id);
     if (!rec) return { error: t('Мод не найден') };
     try {
-      if (rec.kind === 'pack') installer.removePackFully(rec);
-      else installer.remove(rec.files, { recId: rec.id, deployed: rec.enabled !== false });
-      library.removeRecord(id);
-      if (touchesSchema(rec)) schemaService.refresh();
+      removeOne(rec);
+      if (touchesSchema(rec)) await schemaService.refreshInBackground();
       return { ok: true };
     } catch (err) {
       return { error: errorText(err) };
@@ -181,7 +193,9 @@ export function registerLibraryIpc({
       const to = at + (dir < 0 ? -1 : 1);
       if (to < 0 || to >= ordered.length) return { ok: true, moved: 0 };
       const other = ordered[to].r;
-      for (const m of installer.swapSlots(rec, other)) library.update(m.id, { files: m.files });
+      FileTx.run(() => {
+        for (const m of installer.swapSlots(rec, other)) library.update(m.id, { files: m.files });
+      }, installer.log);
       return { ok: true, moved: 1, with: other.name };
     } catch (err) {
       return { error: errorText(err) };
@@ -216,16 +230,20 @@ export function registerLibraryIpc({
       const inPart = target ? ordered.findIndex((x) => x.r.id === target.r.id) : -1;
       const to = inPart !== -1 ? inPart
         : Math.trunc(Number(toIndex)) < all().findIndex((x) => x.r.id === id) ? 0 : ordered.length - 1;
-      let steps = 0;
-      while (at !== to && steps <= ordered.length) {
-        const step = to > at ? 1 : -1;
-        for (const m of installer.swapSlots(ordered[at].r, ordered[at + step].r)) {
-          library.update(m.id, { files: m.files });
+      // the whole walk is one change: a refusal on the tenth swap does not leave the mod halfway
+      const steps = FileTx.run(() => {
+        let n = 0;
+        while (at !== to && n <= ordered.length) {
+          const step = to > at ? 1 : -1;
+          for (const m of installer.swapSlots(ordered[at].r, ordered[at + step].r)) {
+            library.update(m.id, { files: m.files });
+          }
+          ordered = orderNow();
+          at = ordered.findIndex((x) => x.r.id === id);
+          n++;
         }
-        ordered = orderNow();
-        at = ordered.findIndex((x) => x.r.id === id);
-        steps++;
-      }
+        return n;
+      }, installer.log);
       return { ok: true, moved: steps };
     } catch (err) {
       return { error: errorText(err) };

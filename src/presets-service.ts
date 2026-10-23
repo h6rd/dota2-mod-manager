@@ -1,6 +1,7 @@
 /* Presets, and the two ways one travels to somebody else.
  *
- * A preset is a named set of "these mods on, everything else off". Sharing is what makes this
+ * A preset is a named set of "these mods on, everything else off", and the looks that go on in
+ * the slots it names (Library.picksOn). Sharing is what makes this
  * more than a list: a preset that only names catalog mods is a few hundred bytes and installs
  * from the catalog on the other end, while one that has to carry a mod's own bytes can run to
  * hundreds of megabytes. Which of the two a given preset is depends on where its mods came
@@ -25,6 +26,7 @@ import { t } from './i18n.ts';
 import { electron } from './electron.ts';
 import type { Catalog } from './catalog.ts';
 import { createPresetPlan } from './preset-plan.ts';
+import { isWindowRecord } from './arcana-base-color.ts';
 import type { LibFile, LibRecord, PackMember, Preset, PresetEntry } from './types.ts';
 
 /** What of the installer presets ask: what a record is, where its files are, and packing. */
@@ -48,7 +50,8 @@ export function packableRecord(rec: LibRecord | null | undefined): rec is LibRec
 
 /** Does changing this record mean the item table has to be rebuilt? */
 export function touchesSchema(rec: LibRecord): boolean {
-  return rec.categoryId === 'cosmetic' || (Array.isArray(rec.schema) && rec.schema.length > 0);
+  // the arcana window's record sets the colour the builder puts Terrorblade's base on in
+  return rec.categoryId === 'cosmetic' || (Array.isArray(rec.schema) && rec.schema.length > 0) || isWindowRecord(rec);
 }
 
 /**
@@ -57,12 +60,16 @@ export function touchesSchema(rec: LibRecord): boolean {
  * @param deps.catalog        the catalog store, for turning a mod into an identity
  * @param deps.installer      reads and writes what is in the game folder
  * @param deps.library        the manifest of installed mods and saved presets
- * @param deps.schemaService  rebuilds the item table when a preset changes it
+ * @param deps.schemaService  puts a preset's looks on, and rebuilds the item table when a preset changes it
  * @param deps.deployAndApply  rebuilds one pack's VPK
  */
 export function presetsService({ catalog, installer, library, schemaService, deployAndApply }: {
   catalog: Pick<Catalog, 'load'>; installer: PresetInstaller; library: Library;
-  schemaService: { refresh(): unknown }; deployAndApply: (pack: LibRecord) => unknown;
+  schemaService: {
+    refreshInBackground(): Promise<unknown>;
+    pickCosmetic(slot: string, itemId: string, name: string, effectId: string, opts: { write: boolean }): unknown;
+  };
+  deployAndApply: (pack: LibRecord) => unknown;
 }) {
   const plan = createPresetPlan({ catalog, installer, library });
 
@@ -134,12 +141,16 @@ export function presetsService({ catalog, installer, library, schemaService, dep
     }
   }
 
-  // enable exactly the preset's mods, disable everything else
-  function applyPreset(preset: Preset): string[] {
+  /**
+   * Enable exactly the preset's mods, disable everything else, and put its looks on, each in its
+   * slot. A slot the preset does not name keeps what it has (see Library.picksOn).
+   * @param opts.picks  false: the looks are switched off for now (the remote config), mods only
+   */
+  async function applyPreset(preset: Preset, { picks = true } = {}): Promise<string[]> {
     const wanted = new Set(library.presetModIds(preset));
     const errors: string[] = [];
-    // Free cosmetics are not part of a build (see Library.inPreset): a preset that does not
-    // name somebody's courier is not asking for it to be taken off.
+    // Free cosmetics are not among the mods (see Library.inPreset): a preset that does not name
+    // somebody's courier is not asking for it to be taken off. Its own looks go on further down.
     const recs = library.list().filter((r) => Library.inPreset(r));
     let schemaTouched = false;
     // off first, then on: two cursor sets cannot be live at once, so the outgoing one has to
@@ -157,7 +168,17 @@ export function presetsService({ catalog, installer, library, schemaService, dep
         }
       }
     }
-    if (schemaTouched) schemaService.refresh();
+    if (picks) {
+      for (const p of preset.picks || []) {
+        try {
+          schemaService.pickCosmetic(p.slot, p.itemId, p.name, p.effectId, { write: false });
+          schemaTouched = true;
+        } catch (err) {
+          errors.push(`${p.name}: ${(err as Error).message}`);
+        }
+      }
+    }
+    if (schemaTouched) await schemaService.refreshInBackground();
     return errors;
   }
 

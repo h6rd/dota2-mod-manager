@@ -15,9 +15,10 @@ import path from 'node:path';
 
 import * as patcher from '../src/patcher.ts';
 import * as schema from '../src/schema.ts';
-import { readVpkEntryFile } from '../src/vpk.ts';
+import { entryAt, readVpkEntryFile } from '../src/vpk.ts';
+import { encodeKv3, resource } from './helpers/kv3-build.ts';
 import { Library } from '../src/library.ts';
-import { createSchemaService, type SchemaInstaller } from '../src/schema-service.ts';
+import { buildBar, builderStamp, createSchemaService, type BuildStep, type SchemaInstaller } from '../src/schema-service.ts';
 import type { Settings } from '../src/settings.ts';
 import type { LibFile, LibRecord } from '../src/types.ts';
 
@@ -91,15 +92,16 @@ const NO_INSTALLER: SchemaInstaller = {
   installedSize: () => { throw new Error('the installer was not meant to be asked'); },
 };
 
-function service(t: TestContext, { values = {}, installer = NO_INSTALLER, text = GAME_TABLE } = {} as {
-  values?: Record<string, unknown>; installer?: SchemaInstaller; text?: string;
+function service(t: TestContext, { values = {}, installer = NO_INSTALLER, text = GAME_TABLE, bases, onBuild } = {} as {
+  values?: Record<string, unknown>; installer?: SchemaInstaller; text?: string; bases?: Parameters<typeof createSchemaService>[0]['bases'];
+  onBuild?: Parameters<typeof createSchemaService>[0]['onBuild'];
 }) {
   const g = game(t, text);
   fs.mkdirSync(g.userData, { recursive: true });
   const library = new Library(g.userData);
   const settings = settingsIn({ dotaGamePath: g.game, schemaPatch: false, ...values });
   const said: string[] = [];
-  const svc = createSchemaService({ settings, library, installer, userDataDir: g.userData, log: (m) => said.push(m) });
+  const svc = createSchemaService({ settings, library, installer, userDataDir: g.userData, log: (m) => said.push(m), bases, onBuild });
   return { ...g, library, settings, svc, said };
 }
 
@@ -194,6 +196,33 @@ test('a game update is noticed, and repaired: the patch put back and the table r
   assert.match(built, /models\/mod\/rifle\.vmdl/, 'and the mod still in it');
 
   assert.deepEqual(s.svc.heal(), { ok: true, healed: [] }, 'a second look finds nothing to do');
+});
+
+test('a table built by older code is rebuilt at the next start or launch, the game unchanged', (t) => {
+  // the picks kept the files the old item builder made, until each was taken off and picked again
+  const s = service(t);
+  modWith(s.library, 'Rifle mod', [riflePatch('models/mod/rifle.vmdl')]);
+  s.svc.setEnabled(true);
+  assert.deepEqual(s.svc.heal(), { ok: true, healed: [] });
+  const built = String(s.settings.get('schemaStamp'));
+  assert.ok(built.endsWith(`|${builderStamp()}`), 'the stamp names the code as well as the game');
+  s.settings.set('schemaStamp', built.replace(/\|[^|]+$/, '|older'));
+  assert.equal(s.svc.state().stale, true);
+  assert.deepEqual(s.svc.heal(), { ok: true, healed: ['schema'] });
+  assert.equal(s.settings.get('schemaStamp'), built);
+});
+
+test("the code's fingerprint follows its files", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2mm-code-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'a.ts'), 'one');
+  fs.writeFileSync(path.join(dir, 'notes.md'), 'not code');
+  const before = builderStamp(dir);
+  fs.writeFileSync(path.join(dir, 'notes.md'), 'still not code');
+  assert.equal(builderStamp(dir), before);
+  fs.writeFileSync(path.join(dir, 'a.ts'), 'two');
+  assert.notEqual(builderStamp(dir), before);
+  assert.equal(builderStamp(path.join(dir, 'missing')), null, 'unreadable: nothing to compare, nothing rebuilt for it');
 });
 
 test('a signed patch built from an older gameinfo.gi is rebuilt from the new one', (t) => {
@@ -363,4 +392,272 @@ test('without a game path nothing is attempted, and the answers say so', (t) => 
   const st = s.svc.state();
   assert.equal(st.deployed, false);
   assert.equal(st.patched, false);
+});
+
+// ---------- an item's sounds, voice and styles ----------
+
+/** Earthshaker's stock arms and an immortal for them with two styles, a sound swap and a voice. */
+const ES = ['"used_by_heroes"', '{', '\t"npc_dota_hero_earthshaker"\t\t"1"', '}'];
+const STYLED_TABLE = table([
+  item('700', ['"name"\t\t"Earthshaker\'s Bracers"', '"prefab"\t\t"default_item"', '"item_slot"\t\t"arms"', ...ES]),
+  item('7293', ['"name"\t\t"Bracers of the Cavern Luminar"', '"prefab"\t\t"wearable"', '"item_slot"\t\t"arms"', ...ES, '"visuals"', '{',
+    '\t"styles"', '\t{', '\t\t"0"', '\t\t{', '\t\t\t"name"\t\t"#DOTA_Style_Luminar_0"', '\t\t}', '\t\t"1"', '\t\t{', '\t\t\t"name"\t\t"#DOTA_Style_Gone"', '\t\t}', '\t}',
+    '\t"asset_modifier"', '\t{', '\t\t"type"\t\t"sound"', '\t\t"asset"\t\t"Hero_EarthShaker.Totem"', '\t\t"modifier"\t\t"Hero_EarthShaker.Totem.Immortal"', '\t}',
+    '\t"asset_modifier"', '\t{', '\t\t"type"\t\t"response_criteria"', '\t\t"asset"\t\t"luminar"', '\t}',
+    '}']),
+  ...FILLER,
+]);
+const soundFile = (events: [string, string][]) => resource([['DATA', encodeKv3({ obj: events.map(([name, file]) => [name, { obj: [['vsnd_files', { arr: [{ str: file }] }]] }]) })]]);
+
+test("a pick's sounds go into the built table's pak, its styles are named from the game, and a broken file costs only the sounds", (t) => {
+  const s = service(t, { values: { schemaPatch: true }, text: STYLED_TABLE });
+  const pak = (rules: Buffer) => fs.writeFileSync(path.join(s.game, 'dota', 'pak01_dir.vpk'), schema.buildSchemaVpk(STYLED_TABLE, [
+    entryAt('resource/localization/dota_english.txt', Buffer.from('"lang"\n{\n\t"Tokens"\n\t{\n\t\t"DOTA_Style_Luminar_0"\t"Celestial Wisdom"\n\t}\n}\n')),
+    entryAt('soundevents/game_sounds_heroes/game_sounds_earthshaker.vsndevts_c', soundFile([['Hero_EarthShaker.Totem', 'sounds/totem.vsnd']])),
+    entryAt('soundevents/game_sounds_items.vsndevts_c', soundFile([['Hero_EarthShaker.Totem.Immortal', 'sounds/totem_immortal.vsnd']])),
+    entryAt('scripts/talker/response_rules_earthshaker.vrr_c', rules),
+  ]));
+  pak(resource([['DATA', encodeKv3({ obj: [['m_Requirements', { arr: [] }], ['m_ResponseGroups', { arr: [] }]] })]]));
+
+  const bracers = s.svc.cosmeticSlots().slots.flatMap((x) => x.options as { id: string; styles?: string[] }[]).find((o) => o.id === '7293');
+  assert.deepEqual(bracers?.styles, ['Celestial Wisdom', 'Style 2'], "the game's name, or the style's number where the game has none");
+
+  s.svc.pickCosmetic('item:earthshaker:arms', '7293', 'Bracers of the Cavern Luminar', 'style-1');
+  const built = path.join(s.game, patcher.FOLDER, schema.SCHEMA_VPK);
+  const totem = readVpkEntryFile(built, 'soundevents/game_sounds_heroes/game_sounds_earthshaker.vsndevts_c');
+  assert.ok(totem, 'the hero sound file goes in beside the table');
+  assert.match(totem.data.toString('latin1'), /totem_immortal\.vsnd/, 'its totem plays the immortal one');
+
+  // a rules file the reader cannot open: the pick still goes on, without its sounds, and the log says so
+  pak(Buffer.from('not a resource'));
+  s.svc.pickCosmetic('item:earthshaker:arms', '7293', 'Bracers of the Cavern Luminar', '');
+  assert.equal(readVpkEntryFile(built, 'soundevents/game_sounds_heroes/game_sounds_earthshaker.vsndevts_c'), null);
+  assert.match(deployedTable(s.game) as string, /Bracers of the Cavern Luminar/);
+  assert.ok(s.said.some((m) => /sounds left out of the build/.test(m)), s.said.join('\n'));
+});
+
+// ---------- an arcana base under the picks ----------
+
+/** Juggernaut's stock body, mask and sword, Bladeform Legacy (9059), its mask (30261) and another sword (4015). */
+const JUGG = ['"used_by_heroes"', '{', '\t"npc_dota_hero_juggernaut"\t\t"1"', '}'];
+const wear = (id: string, name: string, prefab: string, slot: string, model: string) =>
+  item(id, [`"name"\t\t"${name}"`, `"prefab"\t\t"${prefab}"`, `"item_slot"\t\t"${slot}"`, `"model_player"\t\t"${model}"`, ...JUGG]);
+const ARCANA_TABLE = table([
+  wear('800', "Juggernaut's Body", 'default_item', 'body', 'models/heroes/juggernaut/juggernaut_body.vmdl'),
+  wear('801', "Juggernaut's Mask", 'default_item', 'head', 'models/heroes/juggernaut/jugg_mask.vmdl'),
+  wear('802', "Juggernaut's Sword", 'default_item', 'weapon', 'models/heroes/juggernaut/jugg_sword.vmdl'),
+  wear('9059', 'Bladeform Legacy', 'wearable', 'body', 'models/items/juggernaut/arcana_body.vmdl'),
+  wear('30261', 'Bladeform Legacy - Mask', 'wearable', 'head', 'models/items/juggernaut/arcana_mask.vmdl'),
+  wear('4015', 'Four-Fangs the Swordbreaker', 'wearable', 'weapon', 'models/items/juggernaut/four_fangs.vmdl'),
+  ...FILLER,
+]);
+const VALVE = {
+  'models/items/juggernaut/arcana_body.vmdl_c': "Valve's arcana body",
+  'models/items/juggernaut/arcana_mask.vmdl_c': "Valve's arcana mask",
+  'models/items/juggernaut/four_fangs.vmdl_c': 'Four-Fangs',
+};
+const BASE = {
+  'models/heroes/juggernaut/juggernaut_body.vmdl_c': 'fixed body',
+  'models/heroes/juggernaut/jugg_mask.vmdl_c': 'fixed mask',
+  'models/heroes/juggernaut/jugg_sword.vmdl_c': "the arcana's sword",
+};
+
+test('an arcana picked puts its base on once it is here, its own part takes the fixed one, and another item wins its slot', (t) => {
+  let here = false;
+  const wanted: string[] = [];
+  const bases = {
+    entries: (id: string) => (here && id === 'bladeform_legacy' ? Object.entries(BASE).map(([p, d]) => entryAt(p, Buffer.from(d))) : null),
+    want: async (id: string) => { wanted.push(id); return false; },
+  };
+  const s = service(t, { values: { schemaPatch: true }, text: ARCANA_TABLE, bases });
+  fs.writeFileSync(path.join(s.game, 'dota', 'pak01_dir.vpk'), schema.buildSchemaVpk(ARCANA_TABLE,
+    Object.entries(VALVE).map(([p, d]) => entryAt(p, Buffer.from(d)))));
+  const built = (p: string) => readVpkEntryFile(path.join(s.game, patcher.FOLDER, schema.SCHEMA_VPK), p)?.data.toString() ?? null;
+
+  s.svc.pickCosmetic('item:juggernaut:body', '9059', 'Bladeform Legacy', '');
+  assert.deepEqual(wanted, ['bladeform_legacy'], 'asked for');
+  assert.equal(built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), "Valve's arcana body", "not here yet: the game's files, no waiting");
+  assert.ok(s.said.some((m) => /bladeform_legacy is not here yet/.test(m)));
+
+  here = true;
+  s.svc.pickCosmetic('item:juggernaut:head', '30261', 'Bladeform Legacy - Mask', '');
+  assert.equal(built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), 'fixed body');
+  assert.equal(built('models/heroes/juggernaut/jugg_mask.vmdl_c'), 'fixed mask', "the arcana's own part: the base's, not Valve's");
+  assert.equal(built('models/heroes/juggernaut/jugg_sword.vmdl_c'), "the arcana's sword", 'a slot nothing was picked for: the base fills it');
+
+  s.svc.pickCosmetic('item:juggernaut:weapon', '4015', 'Four-Fangs the Swordbreaker', '');
+  assert.equal(built('models/heroes/juggernaut/jugg_sword.vmdl_c'), 'Four-Fangs', 'another item for a slot: the user picked it');
+  assert.equal(built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), 'fixed body', 'and the arcana stays under it');
+
+  s.library.setEnabled(s.library.list().find((r) => r.itemId === '9059')!.id, false);
+  s.svc.refresh();
+  assert.equal(built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), null, 'the arcana off: its base goes with it');
+  assert.equal(built('models/heroes/juggernaut/jugg_mask.vmdl_c'), "Valve's arcana mask", 'and the mask alone is Valve\'s again');
+});
+
+// ---------- building in the background ----------
+
+/** The Juggernaut table with Valve's files in the game's pak, for the builder's picks. */
+function juggernaut(t: TestContext) {
+  const steps: (BuildStep | null)[] = [];
+  const s = service(t, { values: { schemaPatch: true }, text: ARCANA_TABLE, onBuild: (step) => steps.push(step) });
+  fs.writeFileSync(path.join(s.game, 'dota', 'pak01_dir.vpk'), schema.buildSchemaVpk(ARCANA_TABLE,
+    Object.entries(VALVE).map(([p, d]) => entryAt(p, Buffer.from(d)))));
+  const built = (p: string) => readVpkEntryFile(path.join(s.game, patcher.FOLDER, schema.SCHEMA_VPK), p)?.data.toString() ?? null;
+  const counts = () => steps.filter((x) => x && 'total' in x);
+  const writes = () => steps.filter((x) => x && 'stage' in x && x.stage === 'packed').length;
+  const pick = (slot: string, id: string) => s.svc.pickCosmetic(`item:juggernaut:${slot}`, id, id, '', { write: false });
+  return { ...s, steps, built, counts, writes, pick };
+}
+const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('a build in the background builds only the picks it has not built yet, says how far it is, and answers once the table is written', async (t) => {
+  const s = juggernaut(t);
+  s.pick('body', '9059');
+  const r = await s.svc.refreshInBackground();
+  assert.equal(r.ok, true);
+  assert.equal(r.deployed, true);
+  assert.equal(s.built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), "Valve's arcana body", 'written by the time it answers');
+  assert.deepEqual(s.counts(), [{ done: 1, total: 1 }]);
+  assert.deepEqual(s.steps.slice(-4), [{ stage: 'merged' }, { stage: 'checked' }, { stage: 'packed' }, null], 'the write in stages, then the end');
+
+  s.steps.length = 0;
+  s.pick('weapon', '4015');
+  await s.svc.refreshInBackground();
+  assert.deepEqual(s.counts(), [{ done: 1, total: 1 }], 'the body was built before: only the sword is built now');
+  assert.equal(s.built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), "Valve's arcana body", 'and the body is still in the table');
+  assert.equal(s.built('models/heroes/juggernaut/jugg_sword.vmdl_c'), 'Four-Fangs');
+
+  s.steps.length = 0;
+  await s.svc.refreshInBackground();
+  assert.deepEqual(s.counts(), [], 'nothing new picked: nothing built again');
+  assert.equal(s.writes(), 1, 'the table is still written');
+});
+
+test('a build asked for while one runs stops that one before it writes, and both answers are the build that wrote', async (t) => {
+  const s = juggernaut(t);
+  s.pick('body', '9059');
+  const first = s.svc.refreshInBackground();
+  await tick(); // the first build has taken its first step
+  s.pick('weapon', '4015');
+  const second = s.svc.refreshInBackground();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(a, b, 'one answer for both');
+  assert.equal(s.writes(), 1, 'the out-of-date build wrote nothing');
+  assert.equal(s.built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), "Valve's arcana body");
+  assert.equal(s.built('models/heroes/juggernaut/jugg_sword.vmdl_c'), 'Four-Fangs', 'the build that wrote has the second pick');
+});
+
+test('a refresh while a build runs in the background answers the build, and the Play button waits for the last one', async (t) => {
+  const s = juggernaut(t);
+  s.pick('body', '9059');
+  const waiting = s.svc.refreshInBackground();
+  await tick();
+  const now = s.svc.refresh();
+  assert.equal(await waiting, now, 'the refresh wrote the same library: its result is the answer');
+  assert.equal(s.writes(), 0, 'the build in the background stopped before writing');
+
+  s.pick('weapon', '4015');
+  void s.svc.refreshInBackground();
+  assert.equal(s.built('models/heroes/juggernaut/jugg_sword.vmdl_c'), null, 'asked for, not built yet');
+  await s.svc.settled();
+  assert.equal(s.built('models/heroes/juggernaut/jugg_sword.vmdl_c'), 'Four-Fangs', 'settled resolves once the table is written');
+});
+
+test('the bar shows a build only once it has run long enough to be seen, and counts the picks built anew', () => {
+  const sent: unknown[] = [];
+  let clock = 0;
+  const bar = buildBar((evt) => sent.push(evt), () => 'Building items', 400, () => clock);
+
+  bar({ done: 1, total: 3 });
+  clock = 200;
+  bar({ done: 2, total: 3 });
+  assert.deepEqual(sent, [], 'a fifth of a second in: nothing');
+  clock = 500;
+  bar({ done: 3, total: 3 });
+  bar({ stage: 'packed' });
+  bar(null);
+  assert.deepEqual(sent, [
+    { type: 'count', label: 'Building items', done: 3, total: 3 },
+    { type: 'count', label: 'Building items', done: 3, total: 3 },
+    { type: 'done' },
+  ], 'past the wait: the count, full while the pak is written, then the end');
+
+  sent.length = 0;
+  clock = 1000;
+  bar({ done: 1, total: 1 });
+  bar(null);
+  assert.deepEqual(sent, [], 'a quick build after it: no bar, and no end for a bar that never showed');
+
+  clock = 2000;
+  bar({ stage: 'merged' });
+  clock = 3000;
+  bar({ stage: 'packed' });
+  bar(null);
+  assert.deepEqual(sent, [], 'nothing to build anew, only the write: nothing to count');
+});
+
+// ---------- the window first, the table behind it (issue #286) ----------
+
+test('a repair at start or after a patch builds the table in the background, and Play waits for it', async (t) => {
+  const s = service(t);
+  modWith(s.library, 'Rifle mod', [riflePatch('models/mod/rifle.vmdl')]);
+  s.svc.setEnabled(true);
+  const built = String(s.settings.get('schemaStamp'));
+  s.settings.set('schemaStamp', built.replace(/\|[^|]+$/, '|older'));
+
+  assert.deepEqual(s.svc.heal({ background: true }), { ok: true, healed: ['schema'] }, 'said at once, as the banner needs it');
+  assert.notEqual(s.settings.get('schemaStamp'), built, 'and not built yet: the window goes on drawing meanwhile');
+  await s.svc.settled();
+  assert.equal(s.settings.get('schemaStamp'), built, 'built by the time Play is let through');
+  assert.match(deployedTable(s.game) as string, /models\/mod\/rifle\.vmdl/);
+  assert.deepEqual(s.svc.heal(), { ok: true, healed: [] }, 'and the launch itself finds nothing to do');
+});
+
+test('a build in the background writes the pak without leaving a file of its own beside it, stopped or not', async (t) => {
+  const s = juggernaut(t);
+  s.pick('body', '9059');
+  const first = s.svc.refreshInBackground();
+  // stopped at every point it can be: a newer build each time the first one pauses
+  for (let i = 0; i < 6; i++) { await tick(); void s.svc.refreshInBackground(); }
+  await first;
+  await s.svc.settled();
+  const folder = path.join(s.game, patcher.FOLDER);
+  assert.deepEqual(fs.readdirSync(folder).filter((f) => f.includes('.mmtmp')), [], 'no temporary file left beside the pak');
+  assert.ok(fs.existsSync(path.join(folder, schema.SCHEMA_VPK)));
+  assert.equal(s.built('models/heroes/juggernaut/juggernaut_body.vmdl_c'), "Valve's arcana body");
+});
+
+test('a build pauses while it walks a table it has not listed, and builds the same table as one at once', async (t) => {
+  const s = juggernaut(t);
+  s.pick('body', '9059');
+  s.pick('weapon', '4015');
+  const pauses: number[] = [];
+  const { createBackgroundBuilds } = await import('../src/schema-build.ts');
+  let n = 0;
+  const steps = function* () { for (const step of [1, 2, 3]) { n++; yield { done: step, total: 3 }; } return { ok: true }; };
+  const builds = createBackgroundBuilds(steps as never, (st) => { if (st) pauses.push((st as { done: number }).done); });
+  assert.deepEqual(await builds.inBackground(), { ok: true });
+  assert.deepEqual(pauses, [1, 2, 3], 'each step reaches the bar, with the thread let go between them');
+  assert.equal(n, 3);
+  const inPlace = s.svc.refresh();
+  const once = deployedTable(s.game);
+  await s.svc.refreshInBackground();
+  assert.equal(deployedTable(s.game), once, 'the same table either way');
+  assert.equal(inPlace.ok, true);
+});
+
+test('the free looks the window asks for at start come a step at a time, the same as at once', async (t) => {
+  const { runSteps, PAUSE } = await import('../src/steps.ts');
+  const s = service(t, { values: { schemaPatch: true }, text: ARCANA_TABLE });
+  s.svc.pickCosmetic('item:juggernaut:body', '9059', 'Bladeform Legacy', '');
+  let pauses = 0;
+  const steps = s.svc.cosmeticSlotsSteps();
+  let r = steps.next();
+  for (; !r.done; r = steps.next()) if (r.value === PAUSE) pauses++;
+  assert.ok(pauses >= 3, `the walk lets the window in: ${pauses} pauses`);
+  assert.deepEqual(r.value, s.svc.cosmeticSlots(), 'what the steps give is what the call at once gives');
+  assert.deepEqual(await runSteps(s.svc.cosmeticSlotsSteps()), r.value, 'and what the channel answers');
+  const body = r.value.slots.find((x) => x.slot === 'item:juggernaut:body');
+  assert.equal(body?.picked, '9059', 'with what is picked');
 });

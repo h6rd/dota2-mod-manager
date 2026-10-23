@@ -8,13 +8,15 @@ import { state } from './store.ts';
 import { $ } from './dom.ts';
 import { invalidateViews } from './router.ts';
 import { keyOf } from './keys.ts';
+import { setCosmeticNames } from '../ui/cosmetic-name.ts';
+import { catalogName, catalogLabel } from '../ui/catalog-name.ts';
 import type { LibRecord, Match } from '../library/types.ts';
 
 export { keyOf };
 
 // label for a fingerprint match (array of catalog identities that share the content)
 export function matchLabel(matches: Match): string {
-  return matches.map((m) => m.name + (m.styleLabel ? ` · ${m.styleLabel}` : '')).join(' / ');
+  return matches.map((m) => catalogName(m.name) + (m.styleLabel ? ` · ${catalogLabel(m.styleLabel)}` : '')).join(' / ');
 }
 
 // refresh the catalog "installed" lookup + the library tab counter from a list
@@ -57,12 +59,25 @@ export function pickedIn(slot: string): LibRecord | null {
 // most of the app's actions (toggling a regular mod, searching the catalog) never need
 // them, so this is fetched only where a cosmetic pick could actually have changed.
 export async function refreshCosmeticSlots(): Promise<void> {
-  const { slots, sets } = await window.api.cosmetics.slots();
+  const { slots, sets, names } = await window.api.cosmetics.slots();
+  setCosmeticNames(names || {});
   state.cosmeticSlots = slots || [];
   state.cosmeticSets = sets || []; // the item builder's sets, read with the slots they fill
-  // only called where a cosmetic pick or safe mode could have moved, and both of those
-  // change the catalog's rail as well as the screen asking - so nothing kept is still right
+  // Picks, safe mode and translated labels can change the catalog's rail as well as the
+  // screen asking - so nothing kept is still right.
   invalidateViews();
+}
+
+let first: Promise<void> | null = null;
+/**
+ * The list as the window first reads it, once however many screens ask while it is on its way: at
+ * start the catalog does not wait for it (app.ts), and the screens that need it wait for this one
+ * read rather than each starting their own.
+ */
+export function firstCosmeticSlots(): Promise<void> {
+  if (state.cosmeticSlots) return Promise.resolve();
+  first ||= refreshCosmeticSlots().finally(() => { first = null; });
+  return first;
 }
 
 export async function refreshInstalledIndex(): Promise<void> {

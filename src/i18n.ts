@@ -3,12 +3,14 @@
 // (with {0},{1}... placeholders for interpolated values). A missing key falls back to
 // the Russian source, so the app never shows an empty/undefined string.
 
-export type Lang = 'en' | 'ru';
+import ZH_CN from './i18n-zh-CN.ts';
+
+export type Lang = 'en' | 'ru' | 'zh-CN';
 
 let currentLang: Lang = 'en';
 
 export function setLang(lang: unknown): void {
-  currentLang = lang === 'ru' ? 'ru' : 'en';
+  currentLang = lang === 'ru' || lang === 'zh-CN' ? lang : 'en';
 }
 
 export function getLang(): Lang {
@@ -22,6 +24,8 @@ const EN = {
   'В этой папке не найдена Dota 2 (нет подпапки dota)': 'No Dota 2 here (there is no "dota" subfolder)',
   'Уже установлено': 'Already installed',
   'Мод не найден': 'Mod not found',
+  // a tool of the toolchain with no build for this machine (src/toolchain.ts)
+  'Для этой системы ({0}) нет сборки {1}': 'There is no build of {1} for this system ({0})',
   'Не указана папка игры': 'No game folder is set',
   'Не тот цвет': 'Not a colour',
   'Этот мод нельзя обновить из каталога': 'This mod cannot be updated from the catalog',
@@ -36,6 +40,7 @@ const EN = {
   // the two counted passes of an import, shown on the progress bar
   'Копирование модов': 'Copying mods',
   'Разбор модов': 'Reading mods',
+  'Сборка предметов': 'Building items',
   'Нет _dir.vpk для разбора': 'No _dir.vpk to split',
   'В файле меньше двух героев — разбирать нечего': 'Fewer than two heroes in the file — nothing to split',
   'Совпадение с каталогом не найдено': 'No catalog match found',
@@ -111,7 +116,24 @@ const EN = {
   'Песчаная буря': 'Sand Storm',
   'Призрак': 'Ghost',
   'второй предмет на тот же слот': 'a second item for the same slot',
-  'аркана или персона: конструктор их не меняет': 'an arcana or persona: the builder leaves those alone',
+  'персона: конструктор их не меняет': 'a persona: the builder leaves those alone',
+  'Не найдена модель героя {0}': 'The model of hero {0} was not found',
+  'Стиль {0}': 'Style {0}',
+  // what an arcana does once the builder puts it on (src/arcana-notes.ts)
+  'Не проверено в игре': 'Not checked in the game yet',
+  'Видно только до переподключения к матчу: у стандартного предмета этого слота нет своей модели, и после переподключения игра рисует на её месте ERROR': 'Shows only until you reconnect to a match: this slot\'s stock item has no model of its own, and after a reconnect the game draws ERROR in its place',
+  'Анимации работают с багами': 'Its animations are buggy',
+  'Берёт анимации бессмертного предмета Mask of Madness и из-за них дёргается': 'Takes the animations of the Mask of Madness immortal and twitches because of them',
+  'Работает с оговорками: во втором стиле глаза красно-синие, а второй навык с Aghanim\'s зависит от предметов, отданных тотемом, и может провалить героя под землю': 'Works with caveats: the second style has red and blue eyes, and the second ability with Aghanim\'s depends on the items the totem gives and can sink the hero into the ground',
+  'Нет второй анимации бега: после покупки сапог всегда бежит с мечом в руке': 'No second run: once he buys boots he always runs with the sword in hand',
+  'Выглядит странно, но работает': 'Looks odd, but works',
+  'Ходит развёрнутым на 180°; на втором навыке поворачивается верно, но при атаке крутится не в ту сторону': 'Walks turned 180°; turns the right way on the second ability, but spins the wrong way when attacking',
+  'Не все способности подменяются верно, анимации работают': 'Not every ability is replaced right; the animations work',
+  'Почти без ошибок, но в покое может не махать крыльями': 'Almost right, but may not flap its wings while idle',
+  'Первый стиль работает. Во втором неверные клинки, не все материалы и не те эффекты атаки; анимации верные': 'The first style works. The second has the wrong blades, some wrong materials and the wrong attack effects; the animations are right',
+  'Обычная форма выходит синей, а не красной, и одна анимация неверная': 'The plain form comes out blue rather than red, and one animation is wrong',
+  'Сломан только ультимейт': 'Only the ultimate is broken',
+  'Сломана: на текстуре спины артефакты': 'Broken: the back texture is glitched',
   'для него нет слота в конструкторе': 'the builder has no slot for it',
   'Набор не найден': 'Set not found',
   'items_game: эффект {0} не найден': 'items_game: effect {0} not found',
@@ -126,6 +148,13 @@ const EN = {
   'Сначала закрой Dota 2 — она держит файлы озвучки открытыми':
     'Close Dota 2 first: it holds the voice files open',
   'HTTP {0} — не удалось скачать {1}': 'HTTP {0} — could not download {1}',
+  'Неверный адрес прокси': 'Invalid proxy address',
+  'Прокси должен быть адресом': 'The proxy must be an address',
+  'Прокси должен использовать HTTP или HTTPS': 'The proxy must use HTTP or HTTPS',
+  'Укажи прокси в формате http://host:port': 'Enter a proxy as http://host:port',
+  'Порт прокси должен быть от 1 до 65535': 'The proxy port must be from 1 to 65535',
+  'Прокси не ответил успешно': 'The proxy did not return a successful response',
+  'Не удалось подключиться через прокси': 'Could not connect through the proxy',
   'Не удалось скачать {0}: {1}': 'Could not download {0}: {1}',
   '{0}: скачанный файл не совпадает с тем, что опубликовал автор мода. Попробуй позже': '{0}: what downloaded is not what the mod\'s author published. Try again later',
   'Эта возможность временно отключена': 'This is switched off for now',
@@ -189,7 +218,7 @@ const EN = {
   'плечи': 'shoulders', 'шея': 'neck', 'пояс': 'belt', 'руки': 'arms', 'перчатки': 'gloves', 'спина': 'back', 'крылья': 'wings', 'хвост': 'tail',
   'ноги': 'legs', 'ездовое': 'mount', 'костюм': 'costume', 'эффекты': 'effects', 'способность 1': 'ability 1', 'способность 2': 'ability 2',
   'способность 3': 'ability 3', 'способность 4': 'ability 4', 'ультимейт': 'ultimate', 'призыв': 'summon', 'голос': 'voice',
-  'форма': 'shapeshift', 'база героя': 'hero base', 'разное': 'misc', 'модель': 'model',
+  'форма': 'shapeshift', 'база героя': 'hero base', 'разное': 'misc', 'модель': 'model', 'персона': 'persona',
   'перекраска': 'recolor',
   // kind labels (short)
   'варды': 'wards', 'курьер': 'courier', 'интерфейс': 'UI', 'звуки': 'sounds', 'террейн': 'terrain',
@@ -200,6 +229,7 @@ const EN = {
 
 /** The table as a lookup: any Russian string, its English or nothing. */
 const EN_BY_RU: Readonly<Record<string, string | undefined>> = EN;
+const ZH_BY_RU: Readonly<Record<string, string | undefined>> = ZH_CN;
 
 function fill(tmpl: string, values: unknown[]): string {
   return tmpl.replace(/\{(\d+)\}/g, (_, i) => (values[+i] != null ? String(values[+i]) : ''));
@@ -207,8 +237,8 @@ function fill(tmpl: string, values: unknown[]): string {
 
 // t('Мод не найден') or t('HTTP {0} — не удалось скачать {1}', status, name)
 export function t(ru: string, ...values: unknown[]): string {
-  const en = EN_BY_RU[ru];
-  const tmpl = currentLang === 'en' && en != null ? en : ru;
+  const translated = currentLang === 'zh-CN' ? (ZH_BY_RU[ru] ?? EN_BY_RU[ru]) : EN_BY_RU[ru];
+  const tmpl = currentLang !== 'ru' && translated != null ? translated : ru;
   return values.length ? fill(tmpl, values) : tmpl;
 }
 

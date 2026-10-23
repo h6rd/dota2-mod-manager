@@ -9,7 +9,7 @@ import type { Panels } from '../core/constants.ts';
 export interface StoredSettings {
   dotaGamePath: string | null;
   langSuffix: string;
-  uiLang: 'en' | 'ru';
+  uiLang: 'en' | 'ru' | 'zh-CN';
   langPromptSeen: boolean;
   uiScale: number;
   theme: string;
@@ -26,10 +26,15 @@ export interface StoredSettings {
   /** null until the one question about adult mods is answered (core/adult.ts) */
   showAdult: boolean | null;
   lastSeenVersion: string | null;
+  downloadProxy: string;
   betaChannel?: boolean;
   seenNotices?: string[];
   slotZones?: unknown;
   gameStamp?: unknown;
+  /** the pumpkin in the title bar has come out (ui/pumpkin.ts) */
+  pumpkin?: boolean;
+  /** the ninth theme is open (ui/secret-lock.ts) */
+  secret?: boolean;
 }
 
 /** What main reports while it works, for the bar over the status bar (shell/progress.ts): bytes
@@ -79,6 +84,7 @@ interface SettingsApi {
   detectDota: () => Promise<string | null | false>;
   browseDota: () => Promise<{ path?: string; error?: string; cancelled?: boolean } | null>;
   moveLangFiles: (fromSuffix: string | undefined) => Promise<Reply<{ moved: number; to: string }>>;
+  testProxy: (proxy: string) => Promise<Reply>;
 }
 
 interface UiApi {

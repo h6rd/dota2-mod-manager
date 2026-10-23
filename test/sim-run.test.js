@@ -75,6 +75,14 @@ test('only the first machine of a set runs every scenario, the rest the ones a s
   }
 });
 
+test('a scenario that takes pictures rather than checking runs only when named', async () => {
+  const { defaultScenarios, ON_ASK } = await load();
+  assert.deepEqual(defaultScenarios(['mods.js', 'guide-shots.js', 'scroll.js', 'notes.txt']), ['mods', 'scroll']);
+  for (const s of ON_ASK) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'tools', 'sim', 'scenarios', `${s}.js`)), `ON_ASK names ${s}, which is not a scenario`);
+  }
+});
+
 test('the report names each failed check and escapes what the page shows', async () => {
   const { reportHtml } = await load();
   const html = reportHtml([{ screen: 'fhd', renderer: 'default', dir: 'fhd--default', result: {
@@ -84,4 +92,12 @@ test('the report names each failed check and escapes what the page shows', async
   assert.match(html, /1 failed/);
   assert.match(html, /the &lt;last&gt; card/);
   assert.match(html, /fhd--default\/scroll-top\.png/);
+});
+
+test('a scenario that wrote no check fails the run, and so does a launch with none', async () => {
+  const { silentScenarios } = await load();
+  const checks = [{ scenario: 'scroll', name: 'x', ok: true }, { scenario: 'mods', name: 'y', ok: true }];
+  assert.deepEqual(silentScenarios('scroll,mods', checks), []);
+  assert.deepEqual(silentScenarios('scroll,mods,presets', checks), ['presets: wrote no check at all']);
+  assert.deepEqual(silentScenarios('scroll', []), ['scroll: wrote no check at all', 'the launch wrote no checks']);
 });

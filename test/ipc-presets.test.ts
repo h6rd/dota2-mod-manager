@@ -31,6 +31,7 @@ function stand(t: TestContext, { catalogHas = [] as string[] } = {}) {
   const fpIndex = new Map<string, string>();
 
   const channels = registerAgainst(() => registerPresetsIpc({
+    blocked: () => null,
     win: () => null,
     settings: { get: (k: string) => (k === 'account' ? { id: '1', username: 'misha' } : null) },
     catalog: {},
@@ -45,6 +46,7 @@ function stand(t: TestContext, { catalogHas = [] as string[] } = {}) {
     schemaService: {
       pickCosmetic: (slot: string, itemId: string, name: string) => library.add({ name, categoryId: 'cosmetic', files: [] }),
       refresh: () => log.push('schema'),
+      refreshInBackground: async () => { log.push('schema'); return { ok: true }; },
     },
     presets: {
       catalogIndex: async () => ({

@@ -22,11 +22,25 @@ beyond what `window.api` exposes, and the window refuses to navigate away from i
 is not ceremony: the app renders guide text and mod names that come from a repository we do not
 control, so the renderer is treated as a place where hostile strings end up.
 
+So the main process does not trust it either. Every channel is registered through
+`src/window-guard.ts`, which answers a call only when it comes from the top frame of one of the
+app's two pages (the main window's and the removal window's) and its arguments fit the channel's
+entry in `src/channel-args.ts`: types, sizes, the keys of an object, and for `settings:set` the
+eight settings the window has a control for, so the game folder and the Discord account are not
+one call away from a script. A channel with no entry there refuses to register, so the app does
+not start with one. The same guard grants the page two browser permissions (the clipboard and
+fullscreen) and nothing else, and locks every web contents the app creates against webviews, new
+windows and navigation off its pages. Both windows run their page in Chromium's sandbox.
+`test/window-guard.test.ts` holds the registry against every channel in the source and the
+preloads, makes one real call of each to show the window is let through, and a list of hostile
+ones to show a script is not; the window e2e fails on any refusal in the app's log.
+
 ## Where a feature lives
 
 Anything a user can do to a mod touches four files, in this order:
 
-1. A `src/ipc-*.ts` module gets an `ipcMain.handle('mods:something', ...)` that calls into `src/`
+1. A `src/ipc-*.ts` module gets an `ipcMain.handle('mods:something', ...)` that calls into `src/`,
+   and `src/channel-args.ts` says what it may be handed
 2. `preload.js` exposes it as `api.mods.something`
 3. `renderer/api/` gives it a type: what it takes and what its handler answers
 4. `renderer/views/` calls it and draws the result
@@ -80,7 +94,7 @@ or turning mods back on would resurrect the ones you had deliberately switched o
 5. Pick a free slot: 02 to 29 for categories that must load early, otherwise the first free number
    from 30 up (`src/slot-zones.ts`). Combined packs exist for the same reason and are described in `src/vpk-write.ts`.
 6. Write everything through `src/file-tx.ts`.
-7. Record it in `manifest.json` through `src/library.ts`.
+7. Record it in `manifest.json` through `src/library.ts`, inside the same transaction as the files.
 
 ## All of it or none of it
 
@@ -98,11 +112,22 @@ there while `dota2.exe` is running, and the app checks that the game files are a
 before it downloads anything, after a user moved their Steam library and had the app cheerfully
 install forty three mods into the empty folder Steam left behind.
 
+A transaction also outlives the process that ran it. Each step is written to a journal in
+`userData/tx/` before it is taken (`src/file-tx-journal.ts`), so an app killed halfway, from Task
+Manager, by Windows Update or by a power cut, is undone on the next start before anything reads the
+library or touches the folder; one killed after its commit line is finished instead. The library
+record is a step of the same transaction, so an install cannot leave paks without a record or a
+record without its paks. `test/file-tx-crash.test.ts` kills each kind of change at every write the
+process makes, recovers, and checks the game folder and the library byte for byte against the state
+before the change and after it. `manifest.json` and `settings.json` outside a transaction are
+replaced in one rename (`src/atomic-file.ts`), so a save cut short leaves the old file whole.
+
 ## VPK
 
 `src/vpk.ts` is a full reader and writer for Valve's v1 and v2 pack format, written here rather
 than pulled in, and it is the piece most worth reading first. Every caller imports it from there;
-the code sits in three files behind it: `src/vpk-read.ts` (the index, entries, fingerprints),
+the code sits in the files behind it: `src/vpk-read.ts` (the index and entries), `src/vpk-fingerprint.ts`
+(what a mod is, whatever it is packed as),
 `src/vpk-write.ts` (building, packing a folder, combining, merging, splitting) and
 `src/vpk-analyze.ts` (which heroes and slots a mod's paths touch). It parses the directory tree, reads
 entries with their CRCs, writes single and multi-volume archives, merges a multi-volume mod into
@@ -150,12 +175,24 @@ the status bar means. `src/patcher.ts` performs it and reverses it byte for byte
 `src/schema-service.ts` decides when the schema is rebuilt: always from the installed game's own
 item table, never from a copy a mod happened to ship.
 
+It is rebuilt on every pick, switch and removal, so `src/schema-build.ts` keeps each item builder
+pick as it was built, by item and effects, until the game or the app changes, and builds from the
+window run in the background a step at a time. Electron draws the window from the main process's
+thread, and a build that held it for seconds left the window black after an update (issue #286).
+The long walks (the game's index, the table's items, the soundevents, the check of the built
+table) are generators that pause every few dozen milliseconds (`src/steps.ts`); a newer request
+stops an older build before it writes, the pak is written without holding the thread, and Play
+waits for the last build. At start and after a Dota patch the repair builds behind the open window.
+
 ## Presets
 
-A preset is the set of enabled mods, and it travels two ways.
+A preset is the set of enabled mods, and the looks from the game that were on, kept slot by slot
+(`src/library.ts` picksOn). Applying one switches its mods on and every other mod off, and puts
+each look on in its slot; a slot it does not name keeps what it has, so a courier picked after the
+preset was saved stays on. It travels two ways.
 
 **As a link.** `src/preset-link.ts` encodes catalog identities, not file names, into
-`d2mm://preset/<code>`: deflate, base64url, a code short enough for a chat message. Catalog file
+`d2mm://preset/<code>`, and a look as its slot and item: deflate, base64url, a code short enough for a chat message. Catalog file
 names change when their author renames them; the identity triple does not. The clickable form is
 an https page that hands the code to the app, because chat clients only linkify http and https.
 
@@ -165,12 +202,27 @@ because it did: paths are matched against a strict pattern, a record that does n
 dropped whole rather than half trusted, and a buffer is validated as a VPK before it reaches the
 game folder.
 
+A single mod has a link of its own, `d2mm://mod/<category>/<name>[/<look>]`, each part
+URL-encoded (`src/deep-links.ts` parseModLink). It installs nothing either: the window opens the
+catalog on the mod's category with the mod's window on top, on the look the link names. A link
+that started the app waits in `renderer/views/catalog.ts` until the catalog has loaded, and a mod
+behind the adult question stays behind it.
+
 ## The catalog is somebody else's
+
+Chinese item labels are resolved from Valve's installed localization by `src/cosmetic-names.ts`.
+The renderer's `renderer/ui/cosmetic-name.ts` uses these labels for display and bilingual search,
+keeping canonical names for icon lookup, favourites and saved picks. Missing names keep English.
 
 Mods, previews and guides come from [Dota2PornFxWeb](https://github.com/h6rd/Dota2PornFxWeb), and
 when GitHub is unreachable they come through public proxies. That whole path is untrusted: guide
 HTML goes through an allowlist of tags, and a file name from a catalog record is a name and not a
 path. Who is allowed to have written the bytes in the first place is the next section.
+
+In Chinese, `renderer/ui/catalog-name.ts` supplies display labels for catalog titles, styles and
+groups from the locale JSON dictionaries. Search accepts both labels and original names; record
+keys, downloads and saved styles remain canonical. `renderer/ui/guide-name.ts` translates known
+guide strings by exact match before the existing HTML sanitizer, preserving commands and links.
 
 ## Who is allowed to have written this
 
@@ -300,6 +352,12 @@ the background and most people press Play in Steam, and the repair runs by itsel
 also rebuilt when it was copied from an older `gameinfo.gi` than the game has: build 6946 renamed
 the language path key, and a patch from the day before stopped mounting the language folder.
 
+The built table is rebuilt the same way when the app's own code changed, at the next start or press
+of Play. Picks are kept as records and built from the game's files, so their models, sounds and
+pictures are only as right as the code that built them: the stamp in settings names both the game's
+item table and a fingerprint of `src/` (`builderStamp`). Before it, a fix to the item builder never
+reached a pick until the pick was taken off and made again.
+
 After the repair, `src/update-impact.ts` compares Valve's files that installed mods replace with
 what the update shipped. A mod whose copies the patch changed or removed is marked "pre-patch" in
 My mods and named in the banner about the update: it now puts old files back over new ones.
@@ -355,16 +413,47 @@ module what it unpacks), the renderer's imports, the release contract, `DECISION
 against the repository it describes, and the write-ups in `docs/incidents/` against the tests
 and workflow steps they name as guards.
 
+The checks are checked too, for the ways a green run can prove nothing. `test/suite-integrity.test.ts`
+parses every test file with TypeScript and fails on a test that reaches no assertion (in its own
+body, a helper, or a function it hands its body to), on a test skipped or marked `only` on every
+machine, and on a test file the runner's globs would never pick up. `test/workflows.test.js` fails
+on a job with no `timeout-minutes`, so a hung step fails within its limit instead of holding a
+check "pending" for GitHub's six hours. The e2e fails a launch whose window script reported no
+steps, and the simulator fails a scenario that wrote no check. `tools/mutate.mjs` then asks
+whether the assertions that are there would notice a deliberate breakage.
+
 `tools/sandbox.js` builds a throwaway Dota tree with the real game's `gameinfo.gi` and a
 `pak01_dir.vpk` built from its own item table, then downloads real catalog mods into it. Install,
 load order, packs, the schema patch and language folders are tested there rather than against
 anybody's actual installation. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+Every launch against it is held to it. `npm run start:sandbox`, the e2e and the simulator start
+the app with `--write-jail=sandbox`, and `src/write-jail.ts` then refuses every Node call that
+would change the disk anywhere else (a write, either end of a rename, a delete, a folder, a file
+opened for writing), judged by the real path, so `..` or a junction inside the sandbox pointing
+out of it does not get past. Steam's detection is held to the same folders, so the app never sees
+the real game in the first place. On 2026-10-03 a sandbox whose saved path had gone stale wrote
+into the real game; `test/write-jail.test.ts` replays that with the folder check broken on purpose
+and checks that the real game stays byte for byte as it was, and the e2e fails unless every launch
+logged that it was held and none logged a refused write.
+
 `tools/e2e.mjs` drives the app in that tree the way a player does. It writes a fixture catalog and
 a fixture archive into the app's caches, starts the app twice, and clicks: install, switch off,
-restart, switch on, remove. After each launch it compares the language folder on disk with what
-should be there. No network is involved. `.github/workflows/e2e.yml` runs it on Linux and on
-Windows, and both jobs have to pass before a pull request merges and before a release builds.
+restart, switch on, remove. Then it starts the app the way the uninstaller does and answers the
+removal window three ways: Cancel (exit 3, nothing touched), nothing ticked (exit 0, the mod
+stays), everything ticked (exit 4, the language folder and the game's own gameinfo files byte for
+byte as before the first launch). After each launch it compares the disk with what should be
+there. No network is involved. `.github/workflows/e2e.yml` runs it on Linux and on Windows, and both
+jobs have to pass before a pull request merges and before a release builds.
+
+The update is checked on the packages people install, not on the source tree. `release.yml`'s
+`try-update` installs the last published release, gives it a mod and a favourite through its own
+`window.api`, runs the draft's installer over it with `/S` as an update does, and runs
+`tools/e2e.mjs --upgrade`, which requires the new version to report itself and to find the mod, its
+state and the favourite where the old one left them; then the uninstaller the new version installed
+removes it. `.github/workflows/update.yml` does the same with an installer built from the commit, on
+a pull request that touches what an update goes through and weekly, so the release step has run
+before a release depends on it.
 
 `tools/sim/` runs the app on simulated machines. A machine is a screen (the work area and the
 scale Windows would give the window) and a renderer (the Chromium switches that decide how the page
@@ -379,7 +468,10 @@ again after one of its mods was deleted. `import` picks renamed catalog mods in 
 and a folder of them (the dialog's answer is played by `tools/sim/steps.js`), checks the app
 recognises and links them, and cancels once. `settings` switches the language and reads every screen
 for text left in the other one, and changes the scale and the switches. `game-session` plays the
-game starting, quitting and being updated or checked by Steam (`tools/sim/world.js`). The first
+game starting, quitting and being updated or checked by Steam (`tools/sim/world.js`). `a11y` runs
+axe-core and reads Chromium's accessibility tree over every section and window, walks the app with
+Tab, and opens, installs and removes a mod with the keyboard alone; what it holds the app to is in
+[docs/accessibility.md](docs/accessibility.md). The first
 machine of a set runs every scenario; the others run the ones a screen or a renderer can change
 (`looks` in the profiles). `tools/sim/dota.js` is a model of the game's
 loader, run over the sandbox after each step: what it mounts, which pack wins each file, whether
@@ -410,6 +502,7 @@ that location is not writable.
 | `src/services.ts` | Every long-lived service, built once in the order they depend on each other |
 | `src/ipc.ts`, `src/ipc-*.ts` | Every IPC module registered in one place, and the handlers themselves, one file per group of channels, each naming what it needs |
 | `src/app-context.ts`, `src/electron.ts` | What the IPC modules are handed, and Electron asked for when a module registers |
+| `src/window-guard.ts`, `src/channel-args.ts` | Who may call the main process and with what: the sender, every channel's arguments, the page's permissions and navigation |
 | `src/main-window.ts`, `src/app-page.ts` | The window: its size on the screen it opens on, the one page it may show, Ctrl +/-/0 |
 | `src/dev-harness.ts`, `src/capture.ts` | `MM_SHOT`, `MM_EVAL` and the other switches a script drives the window with, and the screenshot they take |
 | `src/game-upkeep.ts` | The work done at start: the game path, the mod folder following the audio language, the load-order layout, the migrations |
@@ -417,7 +510,7 @@ that location is not writable.
 | `src/patch-watch.ts` | Noticing a game update the moment it lands |
 | `src/update-impact.ts` | Which installed mods a game update reached: Valve's files they replace that the patch changed or removed |
 | `src/mod-update.ts` | Whether the catalog has another version of an installed mod (its fingerprint is not among the catalog's), and replacing it in its own slot ([#171](https://github.com/dota2modmanager/dota2-mod-manager/issues/171)) |
-| `src/kv3.ts` | Binary KV3, versions 1 to 5: every number in a compiled resource found where it lies, changed there, binary blobs given new bytes, and the block written back |
+| `src/kv3.ts` | Binary KV3, versions 1 to 5, LZ4 or (version 5, a model's animations) zstd: every number in a compiled resource found where it lies, changed there, binary blobs given new bytes, and the block written back |
 | `src/kv3-blobs.ts` | Binary blobs in a KV3 block: read, and written back at a new length |
 | `src/kv3-cells.ts` | The numbers in a parsed KV3 block: read and changed where they lie |
 | `src/kv3-write.ts` | A KV3 block written anew from its tree, for changes bigger than a number (an array element added) |
@@ -426,6 +519,8 @@ that location is not writable.
 | `src/resource.ts` | Compiled resources at the block level: a block replaced, the resources a file names (RERL) added to |
 | `src/recolor.ts` | An item's particles and materials in a chosen colour, out of the game's own pak01, as one VPK: what its gem colours, pointed at the chosen colour ([#118](https://github.com/dota2modmanager/dota2-mod-manager/issues/118)) |
 | `src/arcana.ts` | An arcana as a mod built from the game's own files, for a player who has not got it: its models, glow and pictures under the plain hero's names, its colour written in |
+| `src/item-visuals.ts` | What an item changes while it is worn, read from its `visuals` in items_game, and what a mod built from the game's files has to do for each change. How to build one: [docs/item-mods.md](docs/item-mods.md) |
+| `src/mod-doctor.ts` | What is wrong with a mod's VPK, read from its files and the game's: a model's animations that need an item (in its animation clips, which the game picks by, and its sequences), sequences in another order than the game's, a particle's child drawn on the wrong attachment or missing |
 | `src/arcana-service.ts` | The arcana window's side in the main process: what the window shows, the mod built into My mods in an early slot, and built again after a Dota update |
 | `src/app-log.ts`, `src/error-text.ts` | The app's own log, and what a caught error says as one line |
 | `src/deep-links.ts` | d2mm:// links, and the Linux desktop entry that lets them arrive |
@@ -449,11 +544,15 @@ that location is not writable.
 | `src/updater.ts`, `src/portable-update.ts` | Where an installed copy looks for a new version, and updating the portable build without self-overwrite |
 | `src/beta.ts` | Who the beta channel is offered to, from the signed list of Discord accounts, and which update feed a copy reads |
 | `src/vpk.ts`, `src/vpk-read.ts`, `src/vpk-write.ts`, `src/vpk-pack.ts`, `src/vpk-analyze.ts` | The VPK format: reading one, writing one, packing a folder into one, and what a mod's paths say it changes |
-| `src/file-tx.ts` | One transaction per change to the game folder |
+| `src/vpk-shared.ts` | The game's pak01 index opened once for a burst of reads, the item builder's, and let go 30 seconds after the last one |
+| `src/vpk-fingerprint.ts` | A mod's fingerprint from its index or its files, the same whatever it is packed as |
+| `src/steps.ts` | Long work as generators that pause every few dozen milliseconds, run at once with `drain` or a step at a time in the background, so the main process never holds the thread the window draws on for long (issue #286) |
+| `src/file-tx.ts`, `src/file-tx-journal.ts` | One transaction per change to the game folder, and the journal that finishes or undoes it after a crash |
+| `src/atomic-file.ts` | `manifest.json` and `settings.json` replaced in one step |
 | `src/library.ts` | `manifest.json`: installed records and presets |
 | `src/settings.ts`, `src/settings-view.ts` | `settings.json` and its defaults, and everything the Settings screen is told in one answer |
 | `src/catalog.ts`, `src/catalog-signature.ts` | Catalog data and who is allowed to change it |
-| `src/net.ts`, `src/net-mirrors.ts`, `src/net-fetch.ts`, `src/net-download.ts` | Downloads across the mirror chain: the hosts and how each is doing, a request along it, a file to disk checked against its hash |
+| `src/net.ts`, `src/net-mirrors.ts`, `src/net-fetch.ts`, `src/net-download.ts`, `src/download-proxy.ts` | Downloads across the mirror chain: the hosts and how each is doing, an optional user proxy, a request along it, a file to disk checked against its hash |
 | `src/remote-config.ts`, `src/remote-config-format.ts` | The switches and notices this project can change after a release, the version ranges a switch can be held to, the signature over them, and the checks the fetched file goes through |
 | `tools/sign-catalog.js` | The signing side, for whoever holds a private key |
 | `src/safe-zip.ts` | Every foreign archive comes through here |
@@ -462,7 +561,18 @@ that location is not writable.
 | `src/patcher.ts`, `src/patcher-gameinfo.ts`, `src/patcher-signatures.ts` | The search-path patch: the two gameinfo files and the signature list, byte for byte, both directions |
 | `src/schema.ts`, `src/schema-kv.ts`, `src/schema-items.ts`, `src/schema-merge.ts` | `items_game.txt`: walking it, reading its items, merging a mod's blocks, building the item pak |
 | `src/schema-service.ts`, `src/schema-cosmetics.ts`, `src/schema-harvest.ts` | The item table as the app keeps it: the build and the repair, the free cosmetics, and a mod's own blocks |
+| `src/schema-build.ts`, `src/build-bar.ts` | Building the table: each item builder pick built once and kept, and a build a step at a time in the background, a newer one stopping an older one before it writes, with the Play button waiting for the last; and the bar at the bottom of the window while it runs |
+| `src/cosmetic-names.ts` | Official Chinese item names from the installed game's localization tokens; read-only and cached per game build |
 | `src/item-builder.ts`, `src/item-builder-slots.ts`, `src/item-builder-effects.ts` | The item builder: what it offers each hero and slot, the effects, and what a pick writes |
+| `src/item-builder-personas.ts` | Personas: the slot a persona is picked in and one for each of its own, each worn under one of the plain hero's slots over the persona's base, the game's own item where nothing is picked, and the rule that a hero with a persona on wears its items alone |
+| `src/item-builder-styles.ts` | An item's styles, and its visuals with the chosen one made its only one: a pick in another style rides in its effect key as `style-N` |
+| `src/item-builder-assets.ts` | What a pick needs beyond its block: the game's files under the plain paths (models, particles, an arcana's hero model, the hero's portrait, minimap and ability pictures) and the sounds, voice, portrait settings and minimap sprite it switches |
+| `src/arcana-notes.ts` | What each arcana does in the game once the builder puts it on, from a pass through every one: a note with its problems, or that it is broken or not checked, which the slot window shows on the item |
+| `src/arcana-bases.ts` | The arcana bases, each arcana compiled again by hand so it works as the hero's own look: which base a pick puts on, by item, style and what is worn with it, and the rule that every other pick wins over the base where both write a path, the arcana's own parts excepted |
+| `src/arcana-base-store.ts` | The bases brought down from their repository (J0nathan550/d2pfx-arcana-fixes) and kept in userData: listed from its git tree, each file checked against its git hash, a base used only once all of it is here, and the build asked to run again when one comes |
+| `src/arcana-base-color.ts` | Terrorblade's base in the arcana window's colour: the gem's colour written into its particles and materials moved to the chosen one, for the window's mod and for the builder's copy while the window's record is on |
+| `src/item-portraits.ts` | A hero's HUD portrait camera and lights (`scripts/npc/portraits.txt`) and minimap sprite (`scripts/mod_textures.txt`) as the picks make them, every pick's in one copy of each file |
+| `src/item-sounds.ts` | An item's sounds and an arcana's voice, which the server gives only to the item's owner: the plain sound events rewritten as the item's in the game's soundevents files, every pick's in one copy of each |
 | `src/notice-text.ts`, `src/notice-texts.ts` | The game's anti-cheat notice in words that say what to do, in every language Dota ships |
 | `src/terrain-age.ts` | Terrains that replace the whole map, and whether the game's map has moved on since |
 | `src/mod-id.ts`, `src/fingerprints.ts`, `src/hero-names.ts` | What a mod replaces, asked of the game; recognising a file somebody else installed; which hero a name means |
@@ -475,22 +585,29 @@ that location is not writable.
 | `src/uninstall-args.ts`, `src/uninstall-window.ts` | Whether this run is the uninstaller asking what to take along, and the window that asks |
 | `src/folder-size.ts` | Bytes under a folder, for the caches in Settings and the removal window |
 | `src/types.ts` | The shapes the main process hands between its modules |
-| `src/i18n.ts`, `renderer/i18n.js` | Russian and English, for the main process and the window |
+| `src/i18n.ts`, `src/i18n-zh-CN.ts`, `renderer/i18n.js`, `renderer/locales/*` | Russian, English and Simplified Chinese, for the main process and the window |
 | `renderer/app.ts`, `renderer/shell/*` | The window's start, and its own elements every screen reaches: the title bar, search, the switches, progress, drops, updates |
 | `renderer/api/*` | What every channel the window calls takes and answers |
 | `renderer/catalog/*`, `renderer/library/*`, `renderer/presets/*`, `renderer/settings/*` | The four screens, in React |
 | `renderer/views/*` | What each screen reads and does around its components |
-| `renderer/ui/*` | Dialogs, toasts, the media player, the install queue, shared chrome |
+| `renderer/ui/*` | Dialogs, toasts, the media player, the install queue, shared chrome, and the focus and names a keyboard and a screen reader need (`a11y.ts`) |
 | `renderer/core/*` | What the screens share: the store, the router, the records, the categories, the 18+ question |
 | `renderer/motion/*` | How things move: travel, fold, swap, reveal |
 | `renderer/styles/*`, `renderer/fonts/*` | The tokens every size and colour comes from, and the faces |
 | `renderer/uninstall.html`, `renderer/uninstall.js`, `renderer/uninstall-bridge.d.ts` | The removal window, a classic script loaded without a build, and the types of the bridge its preload gives it |
 | `tools/sandbox.js` | The throwaway game tree |
+| `src/write-jail.ts` | A run started with `--write-jail` writes nowhere else |
 | `tools/e2e.mjs`, `test/fixtures/e2e/*` | Installing, switching and removing a mod by clicking through the real window, offline, in the sandbox |
 | `tools/r2-sync.mjs`, `tools/r2-release.mjs`, `tools/r2-client.js`, `tools/mirror-plan.js` | The archive mirror, the update mirror, the signing they share, and which archives the mirror copies again or refuses |
 | `tools/gen-fingerprints.js` | Regenerating the published fingerprint map, and `mod-paths.json`, the files each pak mod replaces |
 | `tools/dota-diff.mjs`, `tools/dota-watch.mjs` | What a Dota build changed, read from GameTracking-Dota2: by hand with `npm run dota:diff`, and twice an hour in the "Dota updates" issue |
 | `tools/recolor.mjs` | `npm run recolor`: the recolour, or with `--arcana` the whole arcana, as a VPK to import, before the window offers it |
+| `tools/clean-arcana-bases.mjs` | A compiled arcana base stripped to models, materials and particles, the editor's files, sounds, pictures and particles every hero shares moved aside |
+| `tools/pack-arcana-vpks.mjs` | Every base in a folder packed into a VPK with VPKTool, one at a time, each checked against the files it was made from |
+| `tools/arcana-bases-manifest.mjs` | manifest.json for the bases' repository, the list of files and hashes the app falls back on where api.github.com cannot be reached |
+| `tools/item-plan.mjs` | `npm run item-plan -- <item>`: `src/item-visuals.ts` from the command line, the first step of building an item as a mod |
+| `tools/mod-doctor.mjs` | `npm run doctor -- <mod_dir.vpk>`: `src/mod-doctor.ts` from the command line, against the game folder in the app's settings |
+| `tools/dota-bench.mjs`, `tools/dota-bench/*.ps1` | `npm run dota:bench -- --vpk <mod_dir.vpk>`: a mod tried in the real game on Windows with nobody at the keyboard: hero demo started with the mod in a free slot, the hero levelled, set on a dummy, its abilities pressed, and pictures taken, a burst of them through the swing, and whether the attack swings (`tools/dota-bench/verdict.mjs`) |
 | `tools/seo-report.mjs`, `tools/seo-state.mjs` | The weekly reach and search report posted to [issue #3](https://github.com/dota2modmanager/dota2-mod-manager/issues/3), and the numbers it carries from one week to the next inside the comment |
 | `tools/release-gate.mjs` | First job of every release: waits until the tagged commit has passed the checks in `.github/required-checks.json`, and refuses it otherwise |
 | `tools/check-credentials.mjs`, `tools/google-auth.mjs` | Every morning before the radar: tries each secret against its service and writes what works, what fails and when each expires, for the radar to report |

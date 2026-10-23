@@ -12,12 +12,28 @@
  */
 import { heroDisplayName } from './vpk.ts';
 import { t } from './i18n.ts';
-import { listItems, toUtf8, eachChild, blockBounds, itemSearchText, inferredItemSlot, type SchemaItem } from './schema.ts';
+import { listItems, listItemsSteps, toUtf8, eachChild, blockBounds, itemSearchText, inferredItemSlot, type SchemaItem } from './schema.ts';
+import { drain, PAUSE } from './steps.ts';
+import { styleTokens } from './item-builder-styles.ts';
+import { itemNote, untilReconnect, type ItemNote } from './arcana-notes.ts';
+import { personaSlots } from './item-builder-personas.ts';
 
 /** A slot of a hero the builder can dress, and the paid items that fit it. */
 export interface ItemSlot {
   slot: string; kind: 'item-effect'; base: string; targetId: string; equipSlot: string; heroIds: string[];
-  heroLabel: string; slotLabel: string; label: string; icon: string; options: { id: string; name: string }[];
+  heroLabel: string; slotLabel: string; label: string; icon: string;
+  /** `styles`: the name token of each style, for an item with more than one (src/item-builder-styles.ts);
+   *  `note`: what is known to go wrong with it in the game, or that nobody has checked (src/arcana-notes.ts) */
+  options: { id: string; name: string; styles?: string[]; note?: ItemNote }[];
+  /** a persona's slot (src/item-builder-personas.ts): `part` false where the persona is picked */
+  persona?: { hero: string; part: boolean };
+}
+
+/** An item's visuals block, as text; null when it has none. */
+function visualsOf(text: string, item: { start: number }): string | null {
+  let out: string | null = null;
+  eachChild(text, blockBounds(text, item.start), (c) => { if (!out && c.isBlock && c.key.toLowerCase() === 'visuals') out = text.slice(c.start, c.end); });
+  return out;
 }
 
 /** One piece of a set: where it goes, or why it does not. */
@@ -28,10 +44,13 @@ type SetPiece =
 /** A set, as the builder puts it on; see itemSets. */
 export interface ItemSet { id: string; name: string; heroIds: string[]; fit: number; heroLabel: string; pieces: SetPiece[] }
 
-/** A file in the game's archive staged under another path in the built VPK. */
-export type AssetCopy = { from: string; to: string };
-
-const ITEM_HIDDEN_HEROES = new Set(['wisp', 'io']);
+/**
+ * A file in the game's archive staged under another path in the built VPK; an `optional` one (a
+ * picture the game has in some of its folders only) is left out when the game has not got it. A hero's own model
+ * names the hero instead of a path: where its model lives is in the hero's script, which the
+ * table does not say, and it goes in with the item's activity modifiers taken off (arcana.ts asModel).
+ */
+export type AssetCopy = { from: string; to: string; optional?: boolean } | { from: string; hero: string; activities: string[] };
 
 const ITEM_SLOT_MATCH_ALIAS: Record<string, string> = {
   offhand_weapon: 'offhand',
@@ -47,11 +66,11 @@ const ITEM_SLOT_LABEL: Record<string, string> = {
   shoulder: 'плечи', shoulders: 'плечи', neck: 'шея', belt: 'пояс', arm: 'руки', arms: 'руки', gloves: 'перчатки', back: 'спина',
   wings: 'крылья', tail: 'хвост', legs: 'ноги', mount: 'ездовое', costume: 'костюм', misc: 'разное', ambient: 'эффекты', ambient_effects: 'эффекты',
   ability1: 'способность 1', ability2: 'способность 2', ability3: 'способность 3', ability4: 'способность 4', ability_ultimate: 'ультимейт',
-  summon: 'призыв', voice: 'голос', shapeshift: 'форма', hero_base: 'база героя',
+  summon: 'призыв', voice: 'голос', shapeshift: 'форма', hero_base: 'база героя', persona_selector: 'персона',
 };
 
 const ITEM_SLOT_ORDER = [
-  'head', 'body_head', 'hair', 'neck', 'shoulder', 'shoulders', 'arm', 'arms', 'gloves', 'back', 'weapon', 'offhand', 'offhand_weapon',
+  'persona_selector', 'head', 'body_head', 'hair', 'neck', 'shoulder', 'shoulders', 'arm', 'arms', 'gloves', 'back', 'weapon', 'offhand', 'offhand_weapon',
   'shield', 'armor', 'belt', 'legs', 'mount', 'wings', 'tail', 'costume', 'ambient', 'ambient_effects', 'ability1', 'ability2', 'ability3',
   'ability4', 'ability_ultimate', 'summon', 'voice', 'shapeshift', 'misc',
 ];
@@ -72,11 +91,8 @@ export function matchItemSlot(slot: unknown): string {
   return ITEM_SLOT_MATCH_ALIAS[clean] || clean;
 }
 
-function hiddenItemHeroes(heroes: string[]): boolean {
-  return heroes.some((hero) => ITEM_HIDDEN_HEROES.has(canonicalHeroId(hero)));
-}
-
-function itemSlotId(heroIds: string[], slot: string): string {
+/** A builder slot's id: its heroes and its slot, item:pudge:weapon. */
+export function itemSlotId(heroIds: string[], slot: string): string {
   return `item:${heroIds.join('+')}:${slot}`;
 }
 
@@ -85,43 +101,54 @@ function titleLabel(text: unknown): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-function slotDisplayLabel(slot: string): string {
+/** A slot's name as a tile says it, in the user's language: "Оружие". */
+export function slotDisplayLabel(slot: string): string {
   const equipSlot = canonicalItemSlot(slot);
   return titleLabel(t(ITEM_SLOT_LABEL[equipSlot] || equipSlot.replace(/_/g, ' ')));
 }
 
-function itemSlotLabel(heroIds: string[], slot: string): string {
+/** A slot's name with its heroes ahead of it, for a slot shown away from its hero: "Pudge · Оружие". */
+export function itemSlotLabel(heroIds: string[], slot: string): string {
   const heroes = heroIds.map((id) => heroDisplayName(canonicalHeroId(id))).join(' / ');
   return `${heroes} · ${slotDisplayLabel(slot)}`;
 }
 
-/** An arcana, a persona or a hero's base model, by its name or its slot: the builder leaves these alone. */
-export function isArcanaPersonaItem(item: Partial<SchemaItem> | null): boolean {
-  const text = itemSearchText(item);
+/**
+ * A persona, by its name or its slot: the plain hero's slots leave these out. A persona is a
+ * second hero with slots of its own, offered apart once it has a base (personaSlots).
+ *
+ * Arcanas used to be left alone as well, and so did the hero_base slot most of them sit in. They
+ * are items like any other: each hero with a hero_base arcana has a stock "<Hero>'s Base" to
+ * dress (twelve on the game of 2026-10-15), and what an arcana needs beyond its block is its hero
+ * model under the plain one's path, which item-builder.ts itemEffectPatch now lists.
+ */
+export function isPersonaItem(item: Partial<SchemaItem> | null): boolean {
   const slot = canonicalItemSlot(inferredItemSlot(item));
-  return text.includes('arcana')
-    || text.includes('persona')
+  return itemSearchText(item).includes('persona')
     || slot === 'persona_selector'
-    || /_persona_\d+$/i.test(slot)
-    || slot === 'hero_base'
-    || slot === 'voice_persona_1'
-    || slot === 'summon_persona_1'
-    || slot === 'shapeshift_persona_1';
+    || /_persona_\d+$/i.test(slot);
 }
 
-function itemSlotIcon(slot: string): string {
+/** The icon a slot's tile shows while nothing in it has a picture. */
+export function itemSlotIcon(slot: string): string {
   return ({
     head: 'face', body_head: 'face', hair: 'content_cut', neck: 'checkroom', weapon: 'swords', offhand: 'shield', offhand_weapon: 'shield', shield: 'shield', armor: 'security',
     shoulder: 'accessibility_new', shoulders: 'accessibility_new', belt: 'checkroom', arm: 'front_hand', arms: 'front_hand', gloves: 'front_hand', back: 'checkroom',
     wings: 'flutter_dash', tail: 'gesture', legs: 'directions_run', mount: 'pets', costume: 'checkroom', ambient: 'auto_awesome', ambient_effects: 'auto_awesome',
     ability1: 'auto_fix_high', ability2: 'auto_fix_high', ability3: 'auto_fix_high', ability4: 'auto_fix_high', ability_ultimate: 'flash_on',
-    summon: 'pets', voice: 'mic', shapeshift: 'pets', misc: 'checkroom',
+    summon: 'pets', voice: 'mic', shapeshift: 'pets', misc: 'checkroom', persona_selector: 'theater_comedy',
   } as Record<string, string>)[canonicalItemSlot(slot)] || 'checkroom';
 }
 
 /** Hero item slots built from real default_item entries, with one donor list per hero part. */
 export function itemSlots(text: string): ItemSlot[] {
-  const items = listItems(text);
+  return drain(itemSlotsSteps(text));
+}
+
+/** itemSlots, a pause every couple of thousand items: the table's 26 000 are a quarter of a second. */
+export function* itemSlotsSteps(text: string): Generator<typeof PAUSE, ItemSlot[]> {
+  const items = yield* listItemsSteps(text);
+  let n = 0;
   const heroCache = new Map<string, string[]>();
   const heroesOf = (item: SchemaItem): string[] => {
     let heroes = heroCache.get(item.id);
@@ -130,13 +157,17 @@ export function itemSlots(text: string): ItemSlot[] {
   };
   const slots = new Map<string, ItemSlot>();
   const matchSlots = new Map<string, string[]>();
+  // the stock items with no model of their own: a pick for their slot has no path to go under
+  const bare = new Set<string>();
   for (const item of items) {
+    if (++n % 2000 === 0) yield PAUSE;
     const equipSlot = canonicalItemSlot(inferredItemSlot(item));
-    if (item.prefab !== 'default_item' || !equipSlot || isArcanaPersonaItem(item)) continue;
+    if (item.prefab !== 'default_item' || !equipSlot || isPersonaItem(item)) continue;
     const heroes = heroesOf(item);
-    if (!heroes.length || hiddenItemHeroes(heroes)) continue;
+    if (!heroes.length) continue;
     const heroIds = heroes.map(canonicalHeroId);
     const slotId = itemSlotId(heroIds, equipSlot);
+    if (!item.model) bare.add(item.id);
     slots.set(slotId, {
       slot: slotId,
       kind: 'item-effect',
@@ -156,10 +187,11 @@ export function itemSlots(text: string): ItemSlot[] {
     matchSlots.set(matchKey, hits);
   }
   for (const item of items) {
+    if (++n % 2000 === 0) yield PAUSE;
     const equipSlot = canonicalItemSlot(inferredItemSlot(item));
-    if (item.prefab !== 'wearable' || !equipSlot || !item.name || isArcanaPersonaItem(item)) continue;
+    if (item.prefab !== 'wearable' || !equipSlot || !item.name || isPersonaItem(item)) continue;
     const heroes = heroesOf(item);
-    if (!heroes.length || hiddenItemHeroes(heroes)) continue;
+    if (!heroes.length) continue;
     const heroIds = heroes.map(canonicalHeroId);
     const slotId = itemSlotId(heroIds, equipSlot);
     let target: ItemSlot | null | undefined = slots.get(slotId);
@@ -168,8 +200,17 @@ export function itemSlots(text: string): ItemSlot[] {
       if (hits.length === 1) target = slots.get(hits[0]) || null;
     }
     if (!target) continue;
-    target.options.push({ id: item.id, name: toUtf8(item.name) });
+    const block = text.slice(item.start, item.end);
+    const styles = block.includes('"styles"') ? styleTokens(visualsOf(text, item)) : [];
+    const noted = itemNote(heroIds, block, item.id);
+    const note = item.model && bare.has(target.base) ? untilReconnect(noted, t) : noted && { status: noted.status, text: t(noted.note) };
+    target.options.push({
+      id: item.id, name: toUtf8(item.name),
+      ...(styles.length ? { styles } : {}),
+      ...(note ? { note } : {}),
+    });
   }
+  for (const s of personaSlots(text)) slots.set(s.slot, s);
 
   const order = new Map(ITEM_SLOT_ORDER.map((slot, i) => [slot, i]));
   return [...slots.values()]
@@ -192,7 +233,7 @@ export function itemSlots(text: string): ItemSlot[] {
  *
  * Only hero items are listed. A set's loading screen, cursor, HUD, ward, announcer or taunt
  * has a tab of its own or is not the app's to set, and nobody puts one on with a set. A hero
- * item the builder leaves alone (an arcana, a persona) is listed as not fitting, with why: it
+ * item the builder leaves alone (a persona) is listed as not fitting, with why: it
  * is part of what the set looks like. A set with nothing to put on is left out, and so is a store
  * bundle of several sets ("Bounty Hunter's Big Bundle": 22 items, 7 slots): more of its pieces
  * want a taken slot than fit, and the first of each would dress the hero in a mix of sets that
@@ -200,16 +241,16 @@ export function itemSlots(text: string): ItemSlot[] {
  * @param text  items_game
  * @param slots  itemSlots(text), when the caller has it already
  */
-export function itemSets(text: string, slots: Pick<ItemSlot, 'slot' | 'slotLabel' | 'options'>[] = itemSlots(text)): ItemSet[] {
+export function itemSets(text: string, slots: Pick<ItemSlot, 'slot' | 'slotLabel' | 'options' | 'persona'>[] = itemSlots(text)): ItemSet[] {
   const items = listItems(text);
   const byName = new Map(items.map((i) => [i.name, i]));
   const home = new Map<string, Pick<ItemSlot, 'slot' | 'slotLabel'>>(); // wearable id -> its slot in the builder
-  for (const s of slots) for (const o of s.options) home.set(o.id, s);
+  for (const s of slots) if (!s.persona) for (const o of s.options) home.set(o.id, s);
   const out: ItemSet[] = [];
   for (const set of items) {
     if (set.prefab !== 'bundle' || !set.bundleItems || !set.bundleItems.length || /do not use/i.test(set.name)) continue;
     const heroes = itemHeroes(text, set);
-    if (!heroes.length || hiddenItemHeroes(heroes)) continue;
+    if (!heroes.length) continue;
     const pieces: SetPiece[] = [];
     const taken = new Set<string>();
     let collide = 0;
@@ -224,7 +265,7 @@ export function itemSets(text: string, slots: Pick<ItemSlot, 'slot' | 'slotLabel
       }
       if (at) collide++;
       const reason = at ? t('второй предмет на тот же слот')
-        : isArcanaPersonaItem(it) ? t('аркана или персона: конструктор их не меняет')
+        : isPersonaItem(it) ? t('персона: конструктор их не меняет')
           : t('для него нет слота в конструкторе');
       pieces.push({ name: toUtf8(it.name), itemId: it.id, fits: false, reason });
     }

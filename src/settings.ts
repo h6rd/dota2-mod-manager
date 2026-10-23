@@ -2,11 +2,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { writeFileAtomic } from './atomic-file.ts';
+
 /** What settings.json holds. The window has the same shape (renderer/api/app.ts StoredSettings). */
 export interface StoredSettings {
   dotaGamePath: string | null;
   langSuffix: string;
-  uiLang: 'en' | 'ru' | string;
+  uiLang: 'en' | 'ru' | 'zh-CN' | string;
   langPromptSeen: boolean;
   uiScale: number;
   theme: string;
@@ -20,6 +22,8 @@ export interface StoredSettings {
   toolsPromptSeen: boolean;
   showAdult: boolean | null;
   lastSeenVersion: string | null;
+  /** HTTP/HTTPS proxy for app downloads; empty means direct connection */
+  downloadProxy: string;
   /** the beta switch; it only counts for an account on the signed list (src/beta.ts) */
   betaChannel?: boolean;
   /** remote notices put away (src/remote-config.ts) */
@@ -28,6 +32,10 @@ export interface StoredSettings {
   slotZones?: number;
   /** the build of the game last seen on disk (src/patch-watch.ts gameStamp) */
   gameStamp?: string | null;
+  /** the pumpkin in the title bar has come out (renderer/ui/pumpkin.ts) */
+  pumpkin: boolean;
+  /** the ninth theme is open (renderer/ui/secret-lock.ts) */
+  secret: boolean;
 }
 
 const DEFAULTS: StoredSettings = {
@@ -49,6 +57,9 @@ const DEFAULTS: StoredSettings = {
   // bh | axe. The catalog's own site has the same eight and switches them by clicking the
   // mascot beside its logo; h6rd let us bring both across (see renderer/styles/themes.css).
   theme: 'ursa',
+  // the title bar's pumpkin, and the ninth theme it opens (renderer/ui/pumpkin.ts)
+  pumpkin: false,
+  secret: false,
   // catalog mods the user starred: "<categoryId>|<mod name>" keys
   favorites: [],
   // sizes and folded state of the title bar, status bar and category rail
@@ -84,6 +95,7 @@ const DEFAULTS: StoredSettings = {
   // last version whose release notes the user was shown. Null on a fresh install, which is
   // why nobody gets a "what's new" popup for a version they just installed by hand.
   lastSeenVersion: null,
+  downloadProxy: '',
 };
 
 export class Settings {
@@ -111,8 +123,7 @@ export class Settings {
   }
 
   save(): void {
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2));
+    writeFileAtomic(this.file, JSON.stringify(this.data, null, 2));
   }
 
   get<K extends keyof StoredSettings>(key: K): StoredSettings[K] {

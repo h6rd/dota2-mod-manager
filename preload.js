@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
     detectDota: () => ipcRenderer.invoke('settings:detectDota'),
     browseDota: () => ipcRenderer.invoke('settings:browseDota'),
     moveLangFiles: (fromSuffix) => ipcRenderer.invoke('settings:moveLangFiles', fromSuffix),
+    testProxy: (proxy) => ipcRenderer.invoke('settings:testProxy', proxy),
   },
   ui: {
     setZoom: (factor) => ipcRenderer.invoke('ui:setZoom', factor),
@@ -22,6 +23,8 @@ contextBridge.exposeInMainWorld('api', {
   catalog: {
     load: (force) => ipcRenderer.invoke('catalog:load', force),
     terrainAges: () => ipcRenderer.invoke('catalog:terrainAges'),
+    // a d2mm://mod/ link clicked outside the app (src/deep-links.ts)
+    onModLink: (cb) => ipcRenderer.on('mod-link', (e, link) => cb(link)),
   },
   mods: {
     install: (payload) => ipcRenderer.invoke('mods:install', payload),

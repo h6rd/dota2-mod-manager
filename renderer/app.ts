@@ -7,6 +7,9 @@
  * way. What is left here is the order: the translations first, then the pieces, then boot().
  */
 // first, before any module that calls L or tr: i18n.js puts them on window
+import './locales/zh-CN-catalog.js';
+import './locales/zh-CN-library.js';
+import './locales/zh-CN-app.js';
 import './i18n.js';
 import './shell/errors.ts';
 import { paintAccount, paintMaximized } from './shell/titlebar.ts';
@@ -18,7 +21,7 @@ import './shell/updates.ts';
 import './views/settings.ts';
 import { state } from './core/store.ts';
 import { render, invalidateViews } from './core/router.ts';
-import { refreshInstalledIndex, refreshCosmeticSlots } from './core/installed.ts';
+import { refreshInstalledIndex, firstCosmeticSlots } from './core/installed.ts';
 import { switchOffStaleTerrains } from './core/terrain-age.ts';
 import { askAdultOnce } from './core/adult.ts';
 import { toast } from './ui/toast.ts';
@@ -28,7 +31,9 @@ import { refreshPatchState, refreshMasterSwitch, refreshSidebarStatus } from './
 import { applyContentZoom, readPanels, bindPanels } from './ui/chrome.ts';
 import { applyStaticI18n, showLanguagePicker } from './ui/language.ts';
 import { initTheme } from './ui/theme.ts';
+import { initPumpkin } from './ui/pumpkin.ts';
 import { initQueue } from './ui/queue.ts';
+import { initA11y } from './ui/a11y.ts';
 import { loadCatalog } from './views/catalog.ts';
 
 /* Fetching it is a download of somebody else's program, so it happens on a yes and never
@@ -36,6 +41,10 @@ import { loadCatalog } from './views/catalog.ts';
  * there, and a failed download does not re-ask on the next launch either - the row in Settings
  * says what happened and offers the retry. */
 async function offerToolchain(): Promise<void> {
+  // a machine with no build of it (a Mac, an ARM board) is not offered a download that cannot run
+  let available = true;
+  try { available = (await window.api.tools.state()).tools.find((x) => x.name === 'vrf')?.available !== false; } catch { /* older main */ }
+  if (!available) return;
   let wanted = false;
   try { wanted = await toolchainDialog(); } catch { /* nothing shown, nothing fetched */ }
   await window.api.settings.set('toolsPromptSeen', true);
@@ -46,6 +55,8 @@ async function offerToolchain(): Promise<void> {
 }
 
 (async function boot() {
+  // focus into and out of every window over the app, dialogs named, icons silent (ui/a11y.ts)
+  initA11y();
   /* Pictures come from the network and the network is the part that fails. Started before
      anything is drawn so the first grid is covered too: a preview that cannot be fetched is asked
      for again from the mirror, and if that fails the tile says so instead of leaving a grey
@@ -60,10 +71,11 @@ async function offerToolchain(): Promise<void> {
   state.favorites = new Set(Array.isArray(cfg.favorites) ? cfg.favorites : []);
   state.panels = readPanels(cfg.panels);
   applyContentZoom(Number(cfg.uiScale) || 1);
-  window.I18N_LANG = cfg.uiLang === 'ru' ? 'ru' : 'en';
+  window.I18N_LANG = cfg.uiLang === 'ru' || cfg.uiLang === 'zh-CN' ? cfg.uiLang : 'en';
   try { localStorage.setItem('uiLang', window.I18N_LANG); } catch { /* ignore */ }
   applyStaticI18n();
   initTheme();
+  initPumpkin();
   initQueue();
   bindPanels();
   paintAccount();
@@ -83,8 +95,11 @@ async function offerToolchain(): Promise<void> {
   await refreshPatchState();
   await switchOffStaleTerrains();
   await refreshInstalledIndex();
-  await refreshCosmeticSlots();
+  // the free looks are read out of the game's 50 MB table, most of a second on the first start:
+  // the catalog is drawn without waiting for them, and drawn again with them once they are here
+  const looks = firstCosmeticSlots().then(() => { if (state.view === 'catalog') render(); });
   await loadCatalog();
+  await looks;
 
   // first launch, or first launch after this release: let the user pick a language
   if (!cfg.langPromptSeen) await showLanguagePicker();

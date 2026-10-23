@@ -28,6 +28,7 @@
   <img src="https://img.shields.io/github/last-commit/dota2modmanager/dota2-mod-manager?style=flat-square&label=last%20commit&labelColor=211f26&color=8b6ff0" alt="Last commit">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-c4b5fd?style=flat-square&labelColor=211f26" alt="License"></a>
   <a href="https://dota2modmanager.com"><img src="https://img.shields.io/badge/site-dota2modmanager.com-c4b5fd?style=flat-square&labelColor=211f26" alt="Website"></a>
+  <a href="https://deepwiki.com/dota2modmanager/dota2-mod-manager"><img src="https://img.shields.io/badge/ask-DeepWiki-c4b5fd?style=flat-square&labelColor=211f26" alt="Ask DeepWiki about this repository"></a>
   <a href="mailto:hello@dota2modmanager.com"><img src="https://img.shields.io/badge/email-hello%40dota2modmanager.com-c4b5fd?style=flat-square&labelColor=211f26" alt="Email: hello@dota2modmanager.com"></a>
   <a href="https://discord.gg/PBvG8D9MxT"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FPBvG8D9MxT%3Fwith_counts%3Dtrue&query=%24.approximate_presence_count&label=discord&suffix=%20online&style=flat-square&labelColor=211f26&color=5865f2&logo=discord&logoColor=white" alt="Discord: people online on the D2PFX catalog's server, where the app has its own channel"></a>
   <a href="https://discord.gg/PBvG8D9MxT"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FPBvG8D9MxT%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&label=members&style=flat-square&labelColor=211f26&color=5865f2" alt="Discord: members of the D2PFX catalog's server"></a>
@@ -48,6 +49,15 @@
 <img src="site/public/screenshots/dota-2-mod-manager-catalog-en.webp" alt="The catalog" width="100%">
 
 </div>
+
+> [!WARNING]
+> **Copies of this app are going around.** Renamed builds of Dota 2 Mod Manager are handed out
+> and sold as other people's launchers, with no source code and no credit. The real one is free,
+> has no paid version and never asks for your Steam login. Do not trust a launcher that shows no
+> source code, names nobody it is built on, wants a subscription or a payment, or makes you sign
+> in. Get it only from [dota2modmanager.com](https://dota2modmanager.com) or this repository's
+> [releases](https://github.com/dota2modmanager/dota2-mod-manager/releases).
+> [How to tell the real one](https://dota2modmanager.com/docs/copies/).
 
 > [!NOTE]
 > Not affiliated with Valve. Every mod here is client-side: nobody else sees them, and no other
@@ -138,8 +148,10 @@ Nothing is injected into Dota's process, and no file of the game is opened while
 - Dota mounts **one** folder, named after its **voice** language. The app sets that language in
   the game's own settings and installs there — **no launch option involved**, which is the part
   worth reading twice. [Why that works](https://dota2modmanager.com/docs/language/)
-- VPK mods go in as `pakNN_dir.vpk`, slots 10 to 99. Categories that must load first get
-  `pak02` to `pak09`. [Slots and load order](https://dota2modmanager.com/docs/vpk/)
+- VPK mods go in as `pakNN_dir.vpk`. Trees, river, shaders, hero effects and the other categories
+  that must load first get `pak02` to `pak29`; everything else starts at `pak30`. `pak64` is the
+  app's own notice text, and `pak65` to `pak67` are left to Minify.
+  [Slots and load order](https://dota2modmanager.com/docs/vpk/)
 - Switching a mod off renames its file to `.off`. The game skips it, the file stays
 - Fonts and cursors go into the game's own folders, with the originals backed up first
 - Everything that writes to the game folder is one transaction: if a step fails, the whole
@@ -186,6 +198,7 @@ installed here survives its uninstall.
 | [ARCHITECTURE.md](ARCHITECTURE.md) · [docs/API.md](docs/API.md) | Which file owns which decision, and every module's exports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md) · [SECURITY.md](SECURITY.md) | How to work on it, with or without an assistant, and how to report a hole |
 | [docs/assurance-case.md](docs/assurance-case.md) | What could go wrong, what stops it, and the test that proves each answer |
+| [docs/evidence.md](docs/evidence.md) | Every claim above with the CI job that runs it and the command that runs it on your machine |
 | [TRADEMARK.md](TRADEMARK.md) · [Code signing policy](docs/code-signing-policy.md) | What the licence gives you and what it does not, and what is signed today |
 | [Status](https://dota2modmanager.betteruptime.com) | Whether the update feed, the mirror, the catalog and the site are answering right now |
 | [PRIVACY.md](PRIVACY.md) | What is collected (nothing), and every address the app can contact |
@@ -306,7 +319,7 @@ the two additional terms this project adds under section 7 of the GPL.
 | [GameTracking-Dota2](https://github.com/SteamTracking/GameTracking-Dota2) | Every Dota build as text, read by this repository's checks to report what an update changed. Not the app | None stated. Read over the network; nothing from it is copied here |
 
 <!-- facts:deps-en -->
-`package.json` lists 14: `adm-zip` and `electron-updater` ship inside the app, `motion`, `react` and `react-dom` are built into its window, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `electron`, `electron-builder`, `eslint`, `fast-check`, `typescript` and `vite` only build or check it.
+`package.json` lists 16: `adm-zip`, `electron-updater` and `undici` ship inside the app, `motion`, `react` and `react-dom` are built into its window, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `axe-core`, `electron`, `electron-builder`, `eslint`, `fast-check`, `typescript` and `vite` only build or check it.
 <!-- /facts:deps-en -->
 The tests use no dependencies at all, and `tools/` uses one, `vite`, to build the window. The VPK reader and writer, the KeyValues parser, the zip guards and the
 update logic are written here, because every dependency is a stranger with write access to a
@@ -325,6 +338,11 @@ writing VPK archives is done by this repository's own code, which is why `src/vp
   and the Dota 2 modding community. This app is a desktop client for their catalog, and every mod
   card in it credits its author.
 - Community tools (VPKMerge, Background Changer, Compiler, ItemsFix) belong to their authors.
+- **[J0nathan550](https://github.com/J0nathan550)** brought the arcanas into the item builder,
+  played every one of them through it, and compiled again by hand the ones Valve's files break
+  there, so Razor runs forward and Juggernaut keeps all his animations. The fixed arcanas live in
+  [d2pfx-arcana-fixes](https://github.com/J0nathan550/d2pfx-arcana-fixes), and the app downloads
+  them from there.
 - **Dota's updates** are read from [GameTracking-Dota2](https://github.com/SteamTracking/GameTracking-Dota2)
   by [SteamTracking](https://github.com/SteamTracking), which commits every Dota build as text within
   the hour. The [Dota updates](https://github.com/dota2modmanager/dota2-mod-manager/issues/225)
@@ -336,6 +354,12 @@ writing VPK archives is done by this repository's own code, which is why `src/vp
 Every other page that links here, from the catalog's README to the projects built from this
 code, is listed with dates in [MENTIONS.md](MENTIONS.md). The few the maintainer wrote are in a
 list of their own.
+
+<br>
+
+## Sponsors
+
+Sponsored by [VGTopup](https://vgtopup.com/), a game top-up store. Paid placement.
 
 <br>
 

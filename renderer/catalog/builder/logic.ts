@@ -2,6 +2,7 @@
  * with what is chosen, which heroes and sets a search leaves, and what a hero's card says. What a
  * pick does to the game is src/item-builder.ts. */
 import { plural } from '../../ui/format.ts';
+import { cosmeticNameMatches } from '../../ui/cosmetic-name.ts';
 import type { CosmeticSet, CosmeticSlot } from '../types.ts';
 import type { BuilderAction } from './model.ts';
 
@@ -13,15 +14,25 @@ interface LivePick { itemId?: string; name?: string; effectId?: string }
 
 type PickedIn = (slot: string) => LivePick | null | undefined;
 
-/** The effects of a pick in the order the slot offers them, as one string: 'fire,snow'. */
-export function effectKey(effects: ItemEffect[] | undefined, ids: string[] | undefined): string {
+/** The effects of a pick in the order the slot offers them, as one string: 'fire,snow'; and its
+ *  style last when it is not the item's first, 'fire,snow,style-2' (src/item-builder.ts effectKey). */
+export function effectKey(effects: ItemEffect[] | undefined, ids: string[] | undefined, style = 0): string {
   const want = new Set(ids || []);
-  return (effects || []).map((fx) => fx.id).filter((id) => id && want.has(id)).join(',');
+  const fx = (effects || []).map((e) => e.id).filter((id) => id && want.has(id));
+  return [...fx, ...(style > 0 ? [`style-${style}`] : [])].join(',');
 }
+
+const STYLE = /^style-(\d+)$/;
 
 /** A record's effects as a list (a record keeps them comma separated, src/item-builder.ts effectKey). */
 export function liveEffects(live: LivePick | null | undefined): string[] {
-  return live?.effectId ? String(live.effectId).split(',').filter(Boolean) : [];
+  return live?.effectId ? String(live.effectId).split(',').filter((id) => id && !STYLE.test(id)) : [];
+}
+
+/** A record's style: the number its key carries ('style-2'), 0 for the item's first. */
+export function liveStyle(live: LivePick | null | undefined): number {
+  const token = String(live?.effectId || '').split(',').find((id) => STYLE.test(id));
+  return token ? Number(STYLE.exec(token)![1]) : 0;
 }
 
 /**
@@ -32,16 +43,17 @@ export function liveEffects(live: LivePick | null | undefined): string[] {
 export function stagedItemAction(
   effects: ItemEffect[] | undefined,
   live: LivePick | null | undefined,
-  st: { busy: boolean; selectedId: string; effectIds: string[] },
+  st: { busy: boolean; selectedId: string; effectIds: string[]; style?: number },
 ): BuilderAction {
   if (st.busy) return { label: L`Надеваю…`, icon: 'hourglass_top', off: true };
   if (!st.selectedId) {
     return live ? { label: L`Вернуть стандартный`, icon: 'undo', remove: true } : { label: L`Надето`, icon: 'check', off: true };
   }
   if (live?.itemId !== st.selectedId) return { label: L`Надеть`, icon: 'checkroom' };
-  return effectKey(effects, st.effectIds) === effectKey(effects, liveEffects(live))
+  if (effectKey(effects, st.effectIds) !== effectKey(effects, liveEffects(live))) return { label: L`Сохранить эффекты`, icon: 'auto_awesome' };
+  return (st.style || 0) === liveStyle(live)
     ? { label: L`Надето`, icon: 'check', off: true }
-    : { label: L`Сохранить эффекты`, icon: 'auto_awesome' };
+    : { label: L`Сохранить стиль`, icon: 'palette' };
 }
 
 // The effects that have a picture. A fixed set, the same ids src/item-builder.ts offers, so the
@@ -55,18 +67,34 @@ export const tagLine = (tags: string[] | undefined): string => [...new Set((tags
 
 export const byName = <T extends { name: string }>(list: T[], query: string): T[] => {
   const q = query.trim().toLowerCase();
-  return q ? list.filter((o) => o.name.toLowerCase().includes(q)) : list;
+  return q ? list.filter((o) => cosmeticNameMatches(o.name, q)) : list;
 };
 
 /** A set is found by its own name or by any piece's. */
 export function matchingSets(sets: ItemSet[], query: string): ItemSet[] {
   const q = query.trim().toLowerCase();
-  return q ? sets.filter((s) => [s.name, ...s.pieces.map((p) => p.name)].some((n) => n.toLowerCase().includes(q))) : sets;
+  return q ? sets.filter((s) => [s.name, ...s.pieces.map((p) => p.name)].some((n) => cosmeticNameMatches(n, q))) : sets;
 }
 
 /** Each piece the builder puts on is on already, whatever effects it carries. */
 export const setIsOn = (set: ItemSet, pickedIn: PickedIn): boolean =>
   set.pieces.every((p) => !p.fits || pickedIn(p.slot)?.itemId === p.itemId);
+
+/** The heroes with a persona picked, by the id their slots carry. */
+export function personaHeroes(slots: ItemSlot[], pickedIn: PickedIn): Set<string> {
+  return new Set(slots.filter((s) => s.persona && !s.persona.part && pickedIn(s.slot)).map((s) => s.persona!.hero));
+}
+
+/**
+ * The slots on offer once the personas picked are counted (src/item-builder-personas.ts): a hero
+ * with a persona on shows the persona's slot and its own ones alone, and a hero without one shows
+ * its plain slots and the slot to pick a persona in. A persona is worn with its own items only.
+ */
+export function withPersonas<T extends ItemSlot>(slots: T[], pickedIn: PickedIn): T[] {
+  const on = personaHeroes(slots, pickedIn);
+  if (!on.size) return slots.filter((s) => !s.persona?.part);
+  return slots.filter((s) => (s.persona ? !s.persona.part || on.has(s.persona.hero) : !(s.heroIds || []).some((h) => on.has(h))));
+}
 
 /** The builder's slots by the hero they belong to, heroes in alphabetical order. */
 export function heroesOf(slots: ItemSlot[]): [string, ItemSlot[]][] {

@@ -21,8 +21,10 @@ import { COSMETIC_PREFIX } from '../core/constants.ts';
 import { catName } from '../core/categories.ts';
 import { pickedIn } from '../core/installed.ts';
 import { showSlotPicker, showHeroModal } from '../catalog/modal/root.tsx';
-import { byName, effectKey, effectPicture, heroesOf, liveEffects, setIsOn, stagedItemAction, tagLine } from '../catalog/builder/logic.ts';
+import { byName, effectKey, effectPicture, heroesOf, liveEffects, liveStyle, setIsOn, stagedItemAction, tagLine } from '../catalog/builder/logic.ts';
 import { plural } from '../ui/format.ts';
+import { heroName } from '../ui/hero-name.ts';
+import { cosmeticName } from '../ui/cosmetic-name.ts';
 import { loadCosmeticIcons } from '../ui/cosmetic-icons.ts';
 import { cosmeticSlotList, slotData } from './catalog/lists.ts';
 import { closeOverlay, openOverlay, sharesOverlay, takeOverlay } from './catalog/overlay.ts';
@@ -52,7 +54,9 @@ export function itemCosmeticSlots(): CosmeticSlot[] {
   return cosmeticSlotList().filter((s) => s.kind === 'item-effect' || String(s.slot || '').startsWith('item:'));
 }
 
-export const heroSets = (heroName: string): CosmeticSet[] => (state.cosmeticSets || []).filter((s) => s.heroLabel === heroName);
+/** A hero's sets: none with a persona on, whose own items are all it wears (src/item-builder-personas.ts). */
+export const heroSets = (heroName: string): CosmeticSet[] => (cosmeticSlotList().some((s) => s.heroLabel === heroName && s.persona && !s.persona.part && pickedIn(s.slot))
+  ? [] : (state.cosmeticSets || []).filter((s) => s.heroLabel === heroName));
 
 /* One builder window on show at a time. Each open counts up: the count is the window's key, so
  * opening draws it fresh (its cards play their entrance) and a change inside it updates in place. */
@@ -89,7 +93,7 @@ interface Back {
   hero?: boolean;
 }
 
-interface SlotState { slot: string; selectedId: string; effectIds: string[]; query: string; back: Back | null; busy: boolean }
+interface SlotState { slot: string; selectedId: string; effectIds: string[]; style: number; query: string; back: Back | null; busy: boolean }
 
 /**
  * @param from  the card it grows out of
@@ -102,7 +106,8 @@ export function openItemSlotModal(slot: string, from: Element | null,
   if (!data) return;
   const live = pickedIn(slot);
   const selectedId = select || live?.itemId || '';
-  const st: SlotState = { slot, selectedId, effectIds: live?.itemId === selectedId ? liveEffects(live) : [], query, back, busy: false };
+  const same = live?.itemId === selectedId;
+  const st: SlotState = { slot, selectedId, effectIds: same ? liveEffects(live) : [], style: same ? liveStyle(live) : 0, query, back, busy: false };
   openWindow(from, true, (key) => drawSlot(key, st));
   loadCosmeticIcons(data.options.slice(0, 36).map((o) => o.name).filter(Boolean), () => {}).catch(() => {});
 }
@@ -114,18 +119,21 @@ function drawSlot(key: number, st: SlotState): void {
   const hasItem = !!st.selectedId;
   const effects = (data.effects || []).filter((fx) => fx.id);
   const chosen = hasItem ? data.options.find((o) => o.id === st.selectedId) : null;
-  const names = effects.filter((e) => st.effectIds.includes(e.id)).map((e) => e.name);
+  const styles = chosen?.styles && chosen.styles.length > 1 ? chosen.styles : null;
+  const names = [...effects.filter((e) => st.effectIds.includes(e.id)).map((e) => e.name), ...(styles && st.style ? [styles[st.style]] : [])];
   const again = () => drawSlot(key, st);
   showSlotPicker(key, {
-    back: st.back?.label || null,
-    title: (st.back?.hero && data.slotLabel) || data.label || catName(COSMETIC_PREFIX + st.slot),
+    back: st.back?.hero ? heroName(st.back.label) : cosmeticName(st.back?.label || '') || null,
+    title: (st.back?.hero && data.slotLabel) || heroName(data.label || catName(COSMETIC_PREFIX + st.slot)),
     optionsCount: data.options.length,
     query: st.query,
     slotIcon: data.icon || 'checkroom',
     // the hero's own item first: choosing it is how a pick comes off
     options: byName([{ id: '', name: L`Стандартный`, tags: [] }, ...data.options], st.query).map((o) => ({
       id: o.id, name: o.name, tags: tagLine(o.tags), picked: o.id === st.selectedId, on: o.id ? live?.itemId === o.id : !live,
+      ...('note' in o && o.note ? { note: o.note } : {}),
     })),
+    styles: styles ? styles.map((name, index) => ({ index, name, picked: index === st.style })) : null,
     effects: effects.length ? {
       none: hasItem && !st.effectIds.length,
       list: effects.map((fx) => ({ id: fx.id, name: fx.name, picture: effectPicture(fx.id), picked: hasItem && st.effectIds.includes(fx.id) })),
@@ -144,6 +152,13 @@ function drawSlot(key: number, st: SlotState): void {
       if (st.busy) return;
       st.selectedId = id;
       if (!id) st.effectIds = []; // the stock item takes no effects
+      // another item starts in its first style, or the one it is on in
+      st.style = live?.itemId === id ? liveStyle(live) : 0;
+      again();
+    },
+    style: (index) => {
+      if (st.busy || !st.selectedId) return;
+      st.style = index;
       again();
     },
     effect: (id) => {
@@ -165,7 +180,7 @@ async function applySlot(key: number, st: SlotState, chosen: CosmeticOption | nu
   st.busy = true;
   drawSlot(key, st);
   try {
-    await cat.pickCosmetic(st.slot, look, !!act.remove, effectKey(data.effects, st.effectIds));
+    await cat.pickCosmetic(st.slot, look, !!act.remove, effectKey(data.effects, st.effectIds, st.style));
   } finally {
     st.busy = false;
     if (isOpen(key)) drawSlot(key, st);

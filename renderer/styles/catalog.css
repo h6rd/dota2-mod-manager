@@ -75,6 +75,9 @@
 }
 .section-h .ms { color: var(--primary-soft); font-size: 19px; }
 .section-h::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+/* a way into the rest of a section, after the rule: quieter than the heading it belongs to */
+.section-h .section-more { order: 1; font-family: var(--font-body); font-weight: 500; color: var(--text-muted); }
+.section-h .section-more:hover { color: var(--text); }
 
 /* ============ Mod grid ============ */
 .grid {
@@ -200,6 +203,18 @@
   color: var(--text-muted);
 }
 .item-picker-sum b { color: var(--text); font-weight: 600; }
+/* what is known to go wrong with the chosen item in the game (src/arcana-notes.ts), under its name
+   and next to the button that puts it on, where it is read before the click */
+.item-picker-sum .item-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-top: var(--space-px);
+  white-space: normal;
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+.item-picker-sum .item-note .ms { font-size: var(--text-sm); }
 .item-picker-foot .btn { flex-shrink: 0; }
 
 .item-pick-grid {
@@ -357,7 +372,10 @@
   bottom: 10px;
   right: 8px;
   display: flex;
-  gap: 5px;
+  /* 6, not 5: a dot is smaller than WCAG 2.2's 24px target, which it may be only with 24px from
+     its centre to the next one's. 18 + 6 is that; 18 + 5 failed axe's target-size the night a
+     mod with styles reached "Recently added" (2026-10-14). */
+  gap: 6px;
   z-index: 3;
 }
 .swatch-dot {
@@ -376,6 +394,19 @@
 .swatch-dot:focus-visible { outline-color: var(--primary); }
 .card-body { padding: 11px 14px 13px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .card-name { font-weight: 700; font-size: 14.5px; line-height: 1.3; }
+/* The name is the card's button for a keyboard (catalog/card/CardName.tsx), and looks exactly like
+   the text it was; focus gives it the ring every control gets (tokens.css). */
+.card-open {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: inherit;
+}
 .card-meta {
   display: flex;
   align-items: center;

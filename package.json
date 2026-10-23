@@ -1,7 +1,8 @@
 {
   "name": "dota2-mod-manager",
   "productName": "Dota 2 Mod Manager",
-  "version": "2.9.0",
+  "version": "2.16.0",
+  "desktopName": "dota2-mod-manager.desktop",
   "description": "Desktop mod manager for Dota 2 — browse, install, toggle and preset 1100+ cosmetic mods from the D2PFX catalog",
   "main": "src/main.ts",
   "scripts": {
@@ -19,10 +20,14 @@
     "sandbox:seed": "node tools/sandbox.js seed",
     "sandbox:reset": "node tools/sandbox.js reset",
     "sandbox:status": "node tools/sandbox.js status",
-    "start:sandbox": "node tools/ui-build.mjs && node tools/sandbox.js pin && electron . --user-data-dir=sandbox/userdata",
+    "guide-shots": "node tools/guide-shots.mjs",
+    "start:sandbox": "node tools/ui-build.mjs && node tools/sandbox.js pin && electron . --user-data-dir=sandbox/userdata --write-jail=sandbox",
     "e2e": "node tools/e2e.mjs",
     "sim": "node tools/sim/run.mjs",
     "dota:diff": "node tools/dota-diff.mjs",
+    "dota:bench": "node tools/dota-bench.mjs",
+    "doctor": "node tools/mod-doctor.mjs",
+    "item-plan": "node tools/item-plan.mjs",
     "recolor": "node tools/recolor.mjs",
     "fuzz": "node tools/fuzz-parsers.mjs",
     "mutate": "node tools/mutate.mjs",
@@ -41,20 +46,22 @@
   "devDependencies": {
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
-    "electron": "^44.5.1",
+    "@vitejs/plugin-react": "^6.1.2",
+    "axe-core": "^4.14.0",
+    "electron": "^44.7.0",
     "electron-builder": "^26.15.3",
     "eslint": "^10.12.0",
     "fast-check": "^4.10.2",
-    "motion": "^13.4.4",
+    "motion": "^14.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^5.9.3",
-    "vite": "^8.3.2"
+    "vite": "^8.3.4"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "undici": "^7.30.0"
   },
   "build": {
     "appId": "com.thefleece.dota2modmanager",
@@ -67,6 +74,7 @@
       "!src/tsconfig.json",
       "renderer/**/*",
       "out/renderer/**/*",
+      "build/icon.png",
       "package.json",
       "CHANGELOG.md",
       "CHANGELOG.ru.md",
@@ -107,6 +115,7 @@
         "AppImage"
       ],
       "icon": "build/icon.png",
+      "syncDesktopName": true,
       "category": "Game",
       "artifactName": "Dota-2-Mod-Manager.${ext}",
       "synopsis": "Mods for Dota 2, without the file juggling"
@@ -125,6 +134,14 @@
       "owner": "dota2modmanager",
       "repo": "dota2-mod-manager",
       "releaseType": "release"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "enableCookieEncryption": true
     }
   }
 }

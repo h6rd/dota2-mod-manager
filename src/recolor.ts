@@ -19,7 +19,7 @@
 import { readKv3, readCell, writeCell, numberOf, type Kv3Block, type Kv3Node } from './kv3.ts';
 import { attributeToken, constantExpression, rewriteExpressions, withConstant } from './material.ts';
 import { dataBlock } from './resource.ts';
-import { buildVpk, entryAt, listVpkPathsFile, openVpkIndex } from './vpk.ts';
+import { buildVpk, entryAt, sharedVpkIndex } from './vpk.ts';
 
 export type Rgb = [number, number, number];
 
@@ -74,12 +74,17 @@ function fromHsv([h, s, v]: [number, number, number]): Rgb {
 /**
  * One colour moved to the chosen one. A colour with almost no saturation has no hue to move and is
  * left alone; anything else takes the target's hue, with saturation and brightness scaled by it.
+ * With `from`, the colour the file was made in (an arcana base has its gem's written in,
+ * src/arcana-base-color.ts), it moves as far as `from` would to the target instead: the base in
+ * its own colour stays as it was made.
  */
-export function shade(color: Rgb, target: Rgb): Rgb {
-  const [, s, v] = toHsv(color);
+export function shade(color: Rgb, target: Rgb, from?: Rgb): Rgb {
+  const [h, s, v] = toHsv(color);
   if (s < 0.1) return color;
   const [th, ts, tv] = toHsv(target);
-  return fromHsv([th, Math.min(1, s * ts), Math.min(1, v * tv)]);
+  if (!from) return fromHsv([th, Math.min(1, s * ts), Math.min(1, v * tv)]);
+  const [fh, fs, fv] = toHsv(from);
+  return fromHsv([(h + th - fh + 360) % 360, Math.min(1, s * (fs ? ts / fs : 1)), Math.min(1, v * (fv ? tv / fv : 1))]);
 }
 
 /** The operators that colour a particle from control point 15, where the game puts a gem's colour. */
@@ -87,8 +92,11 @@ const GEM_TINT = /^C_(INIT|OP)_RemapCPtoVector$/;
 
 type Num = Extract<Kv3Node, { kind: 'number' }>;
 
-/** A gem tint in a particle: its range, whether it scales the colour or replaces it, and its bytes. */
-interface Tint { hi: Num[] | null; lo: Num[] | null; from: Num[] | null; scale: boolean }
+/**
+ * A gem tint in a particle: its range, whether it scales the colour or replaces it, its bytes, and
+ * when it runs (0: an initializer, as a particle is born; 1: an operator, every frame after).
+ */
+interface Tint { hi: Num[] | null; lo: Num[] | null; from: Num[] | null; scale: boolean; stage: 0 | 1 }
 
 /** The operators in a particle that colour it from control point 15, where the game puts a gem's colour. */
 function gemTints(kv: Kv3Block): Tint[] {
@@ -105,7 +113,10 @@ function gemTints(kv: Kv3Block): Tint[] {
     const method = m.get('m_nSetMethod');
     if (cls?.kind === 'string' && GEM_TINT.test(cls.value) && cp?.kind === 'number' && numberOf(kv, cp) === 15
       && field?.kind === 'number' && numberOf(kv, field) === 6) {
-      out.push({ hi: vector(m.get('m_vOutputMax')), lo: vector(m.get('m_vOutputMin')), from: vector(m.get('m_vInputMin')), scale: method?.kind === 'string' && method.value === 'PARTICLE_SET_SCALE_INITIAL_VALUE' });
+      out.push({
+        hi: vector(m.get('m_vOutputMax')), lo: vector(m.get('m_vOutputMin')), from: vector(m.get('m_vInputMin')),
+        scale: method?.kind === 'string' && method.value === 'PARTICLE_SET_SCALE_INITIAL_VALUE', stage: cls.value.startsWith('C_INIT_') ? 0 : 1,
+      });
     }
     m.forEach(visit);
   };
@@ -144,32 +155,40 @@ function retarget(kv: Kv3Block, tints: Tint[], gem: Rgb, target: Rgb): { changed
 /** The colours a particle starts from, which a gem's tint replaces or scales. */
 const INITIAL = /^m_(ConstantColor|ColorMin|ColorMax)$/;
 
+/** A colour brought into 0..255 with its hue kept: a channel over 255 takes the others down with it. */
+function fit(rgb: number[]): Rgb {
+  const over = Math.max(255, ...rgb) / 255;
+  return rgb.map((n) => Math.max(0, Math.round(n / over))) as Rgb;
+}
+
 /**
- * For a hero with no gem: write into the colours a particle starts from what the gem's tint would
- * have made of them in the chosen colour, the colour times the tint's range (or, for a tint that
- * scales, times the colour that was there).
+ * For a hero with no gem: write into the colours a particle starts from what the gem's tints would
+ * have made of them in the chosen colour. The tints run as the game runs them, initializers then
+ * operators, each one the colour times its range (or, for a tint that scales, times the colour that
+ * was there), so a later one that sets the colour wins: a blade scaled from its blue and then set
+ * to the gem came out brown in red and blue in pink when only the first was read (issue #118). A
+ * channel over 255 takes the others down with it, so the hue stays.
  */
-function bakeTint(kv: Kv3Block, tint: Tint, target: Rgb): { changed: number; skipped: number } {
-  const span = range(kv, tint);
-  if (!span) return { changed: 0, skipped: 1 };
+function bakeTint(kv: Kv3Block, tints: Tint[], target: Rgb): { changed: number; skipped: number } {
+  const ordered = [...tints].sort((a, b) => a.stage - b.stage);
+  const spans = ordered.map((t) => range(kv, t));
+  if (spans.some((s) => !s)) return { changed: 0, skipped: 1 };
   let changed = 0;
   let skipped = 0;
   for (const a of kv.arrays) {
     if (!INITIAL.test(a.key) || (a.cells.length !== 3 && a.cells.length !== 4) || a.cells.some((c) => c && c.float)) continue;
     if (a.cells.some((c) => c === null)) { skipped++; continue; }
     const cells = a.cells as NonNullable<(typeof a.cells)[number]>[];
-    for (let c = 0; c < 3; c++) {
-      const was = readCell(kv, cells[c]);
-      const tinted = target[c] * span[c] * (tint.scale ? was / 255 : 1);
-      writeCell(kv, cells[c], Math.max(0, Math.min(255, Math.round(tinted))));
-    }
+    let rgb = [0, 1, 2].map((c) => readCell(kv, cells[c]));
+    ordered.forEach((t, i) => { rgb = rgb.map((was, c) => target[c] * spans[i]![c] * (t.scale ? was / 255 : 1)); });
+    fit(rgb).forEach((n, c) => writeCell(kv, cells[c], n));
     changed++;
   }
   return { changed, skipped };
 }
 
 /** The colours written in a particle moved to the chosen one (but those `skip` names); `skipped` counts those with no room. */
-function shadeColors(kv: Kv3Block, target: Rgb, skip?: RegExp): { changed: number; skipped: number } {
+export function shadeColors(kv: Kv3Block, target: Rgb, skip?: RegExp, from?: Rgb): { changed: number; skipped: number } {
   let changed = 0;
   let skipped = 0;
   for (const a of kv.arrays) {
@@ -181,7 +200,7 @@ function shadeColors(kv: Kv3Block, target: Rgb, skip?: RegExp): { changed: numbe
     const cells = a.cells as NonNullable<(typeof a.cells)[number]>[];
     const rgb = cells.slice(0, 3).map((c) => readCell(kv, c)) as Rgb;
     if (rgb.some((n) => n < 0 || n > 255)) continue;
-    const next = shade(rgb, target);
+    const next = shade(rgb, target, from);
     if (next.every((n, i) => n === rgb[i])) continue;
     next.forEach((n, i) => writeCell(kv, cells[i], n));
     changed++;
@@ -194,18 +213,19 @@ function shadeColors(kv: Kv3Block, target: Rgb, skip?: RegExp): { changed: numbe
  * colour; with `own` (the default), a particle the gem does not tint has its written colours moved.
  * With `bake`, for a hero who has no gem (src/arcana.ts), that tint is off and what is written is
  * what shows: a particle the gem would tint starts from what the tint would have given, and its
- * other colours move to the chosen one.
+ * other colours move to the chosen one. With `from`, the written colours move as far as `from`
+ * would (shade).
  */
-export function recolorResource(file: Buffer, target: Rgb, { gem, own = true, bake = false }: { gem?: Rgb; own?: boolean; bake?: boolean } = {}): {
+export function recolorResource(file: Buffer, target: Rgb, { gem, own = true, bake = false, from }: { gem?: Rgb; own?: boolean; bake?: boolean; from?: Rgb } = {}): {
   file: Buffer; changed: number; skipped: number;
 } {
   const block = dataBlock(file);
   const kv = readKv3(block.data);
   const none = { changed: 0, skipped: 0 };
   const tints = gemTints(kv);
-  const baked = bake && tints.length ? bakeTint(kv, tints[0], target) : none;
+  const baked = bake && tints.length ? bakeTint(kv, tints, target) : none;
   const tint = gem ? retarget(kv, tints, gem, target) : none;
-  const written = bake && tints.length ? shadeColors(kv, target, INITIAL) : (bake ? own : own && !tint.changed) ? shadeColors(kv, target) : none;
+  const written = bake && tints.length ? shadeColors(kv, target, INITIAL, from) : (bake ? own : own && !tint.changed) ? shadeColors(kv, target, undefined, from) : none;
   const changed = baked.changed + tint.changed + written.changed;
   return { file: changed ? block.replace(kv.encode()) : file, changed, skipped: baked.skipped + tint.skipped + written.skipped };
 }
@@ -236,13 +256,13 @@ export function recolorFiles({ pak01, set, target, bake = false }: { pak01: stri
 } {
   const def = RECOLOR_SETS[set];
   if (!def) throw new Error(`recolor: no set ${set}`);
-  const index = openVpkIndex(pak01);
+  const index = sharedVpkIndex(pak01);
   const files = new Map<string, Buffer>();
   const failed: Failed = [];
   let changed = 0;
   let skipped = 0;
   const under = (p: string, prefixes: string[]) => prefixes.some((f) => p.startsWith(f));
-  for (const p of listVpkPathsFile(pak01)) {
+  for (const p of index.paths()) {
     const particle = p.endsWith('.vpcf_c') && (under(p, def.own) || under(p, def.shared));
     const material = p.endsWith('.vmat_c') && under(p, def.materials);
     if (!particle && !material) continue;
@@ -259,11 +279,12 @@ export function recolorFiles({ pak01, set, target, bake = false }: { pak01: stri
   return { files, changed, skipped, failed };
 }
 
-/** A set recoloured into one VPK, from the game's pak01, for a hero whose item brings its gem. */
-export function buildRecolor({ pak01, set, target }: { pak01: string; set: string; target: Rgb }): {
+/** A set recoloured into one VPK, from the game's pak01, for a hero whose item brings its gem (but the paths `skip` names). */
+export function buildRecolor({ pak01, set, target, skip }: { pak01: string; set: string; target: Rgb; skip?: (p: string) => boolean }): {
   vpk: Buffer; files: number; changed: number; skipped: number; failed: Failed;
 } {
   const r = recolorFiles({ pak01, set, target });
   if (!r.files.size) throw new Error('recolor: nothing in the set took the colour');
+  for (const p of r.files.keys()) if (skip?.(p.toLowerCase())) r.files.delete(p);
   return { vpk: buildVpk([...r.files].map(([p, f]) => entryAt(p, f))), files: r.files.size, changed: r.changed, skipped: r.skipped, failed: r.failed };
 }

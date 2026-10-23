@@ -13,16 +13,20 @@ import * as importer from './import.ts';
 import { createCursors } from './cursors.ts';
 import { createAdopt, type ImportResult } from './adopt.ts';
 import { Library } from './library.ts';
+import { FileTx } from './file-tx.ts';
+import { recoverJournals } from './file-tx-journal.ts';
 import { Fingerprints } from './fingerprints.ts';
 import * as discordAuth from './discord-auth.ts';
 import { DiscordPresence } from './discord-presence.ts';
-import { createSchemaService } from './schema-service.ts';
+import { buildBar, builderStamp, createSchemaService } from './schema-service.ts';
 import { createUpdateImpact, impactMods } from './update-impact.ts';
-import { createArcanaService } from './arcana-service.ts';
+import { createArcanaService, type Generated } from './arcana-service.ts';
+import { createBaseStore } from './arcana-base-store.ts';
+import { TERRORBLADE_BASE } from './arcana-bases.ts';
 import { clientVersion } from './patch-watch.ts';
 import { createRemoteConfig } from './remote-config.ts';
 // the download chain, so a mirror named in that signed file joins it
-import { applyMirrors } from './net.ts';
+import { applyMirrors, setDownloadProxy } from './net.ts';
 import { createToolchain } from './toolchain.ts';
 import { createGameIcons } from './game-icons.ts';
 import { createModPreviews } from './mod-preview.ts';
@@ -45,7 +49,13 @@ export function createServices({ userData, appVersion, sendProgress, diag, fetch
   /** Electron's network stack, which the wiki's pictures come through (see src/icons.ts) */
   fetchIcons: ConstructorParameters<typeof Icons>[1];
 }) {
+  // Before anything reads the library or touches the game folder: a change the last process
+  // died in the middle of is finished or undone first, so what loads next is one whole state.
+  FileTx.journalDir = path.join(userData, 'tx');
+  const recovered = recoverJournals(FileTx.journalDir, diag);
+  if (recovered.undone || recovered.finished) diag(`tx recovery: undid ${recovered.undone}, finished ${recovered.finished}`);
   const settings = new Settings(userData);
+  setDownloadProxy(settings.get('downloadProxy'));
   setLang(settings.get('uiLang'));
   const catalog = new Catalog(userData);
   const library = new Library(userData);
@@ -63,7 +73,24 @@ export function createServices({ userData, appVersion, sendProgress, diag, fetch
   });
   const presence = new DiscordPresence({ clientId: discordAuth.CLIENT_ID, onDiag: diag });
   const presenceStatus = createPresenceStatus({ presence, settings, library, installer });
-  const schemaService = createSchemaService({ settings, library, installer, userDataDir: userData, log: diag });
+  /* The arcana bases (src/arcana-bases.ts): asked for by the build that needs one, which goes on
+     from the game's files meanwhile, and built again with it once it is here: the builder's table,
+     and the arcana window's Terrorblade if it was built whole from Valve's files. */
+  const bases = createBaseStore({
+    dir: path.join(userData, 'arcana-bases'),
+    log: diag,
+    onReady: (id) => {
+      void schemaService.refreshInBackground();
+      if (id !== TERRORBLADE_BASE) return;
+      // after the table, not on top of it: each is a stretch of the thread the window draws on
+      void schemaService.settled().then(() => arcana.rebuild(library.list().filter((r) => (r.generated as Generated | undefined)?.mode === 'mod').map((r) => r.id)));
+    },
+  });
+  // the item table built in the background says how far it is on the bar at the bottom
+  const onBuild = buildBar(sendProgress, () => t('Сборка предметов'));
+  // the arcana window's Terrorblade leaves the paths the builder's picks fill to them
+  const schemaService = createSchemaService({ settings, library, installer, userDataDir: userData, log: diag, bases, onBuild,
+    onDeployed: (filled) => arcana.giveWay(filled) });
   // which installed mods a Dota update reached (src/update-impact.ts)
   const updateImpact = createUpdateImpact({
     file: path.join(userData, 'update-impact.json'),
@@ -73,7 +100,7 @@ export function createServices({ userData, appVersion, sendProgress, diag, fetch
     log: diag,
   });
   // the arcana built out of the game's own files, in a colour of the user's (src/arcana.ts)
-  const arcana = createArcanaService({ gamePath: () => settings.get('dotaGamePath'), installer, library, log: diag });
+  const arcana = createArcanaService({ gamePath: () => settings.get('dotaGamePath'), installer, library, log: diag, bases, code: builderStamp });
   const cursors = createCursors({ installer, library, settings });
   const adopt = createAdopt({ installer, library, schemaService });
   // what the app can be told after it shipped: a feature switched off with a reason, and dated

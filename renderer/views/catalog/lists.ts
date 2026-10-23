@@ -8,11 +8,14 @@ import { state } from '../../core/store.ts';
 import { pickedIn } from '../../core/installed.ts';
 import { shownMods, isAdult, adultShown } from '../../core/adult.ts';
 import { heroMatches } from '../hero-grid.ts';
+import { cosmeticMatchesSearch } from '../../ui/hero-name.ts';
+import { cosmeticName } from '../../ui/cosmetic-name.ts';
 import { modsOf, isGrouped, modIndexOf, type CustomPack } from '../../catalog/mods.ts';
 import { tagLabel as labelOfTag, collectSlots as slotsOf } from '../../catalog/tags.ts';
 import { applyFilters as filterMods, sortMods } from '../../catalog/filters.ts';
 import { isFav } from '../../catalog/favorites.ts';
 import { isInstalled } from '../../catalog/looks.ts';
+import { withPersonas } from '../../catalog/builder/logic.ts';
 import { catalogConstants, catalogData } from '../../catalog/data.ts';
 import type { CosmeticOption, CosmeticSlot, Mod } from '../../catalog/types.ts';
 import { view } from './state.ts';
@@ -66,6 +69,17 @@ export function applyFilters(mods: Mod[], catForInstalled = ''): Mod[] {
   });
 }
 
+/* The mod a d2mm://mod/ link names: in the category the link gives, else by name wherever the
+ * catalog has since moved it. Not past the adult question, though (core/adult.ts): a link is no
+ * way round it. */
+export function findLinkedMod(cat: string, name: string): Mod | null {
+  const want = name.toLowerCase();
+  const own = categoryMods(cat).find((m) => m.name?.toLowerCase() === want);
+  if (own) return { ...own, _cat: cat };
+  const moved = findModByName(cat, name);
+  return moved && shownMods([moved]).length ? moved : null;
+}
+
 export function findModByName(cat: string, name: string): Mod | null {
   if (cat === 'packs') {
     const custom = customPacks().find((p) => p.name === name);
@@ -92,8 +106,9 @@ export function favoriteMods(): Mod[] {
 
 // Cosmetics only work with the schema patch on, so with safe mode they are not offered
 // anywhere: the rail, the favourites, the search all ask here first.
+/** The free looks and the builder's slots on offer: a hero with a persona on, its persona's alone (catalog/builder/logic.ts withPersonas). */
 export function cosmeticSlotList(): CosmeticSlot[] {
-  return state.settings?.schemaPatch ? (state.cosmeticSlots || []) : [];
+  return state.settings?.schemaPatch ? withPersonas(state.cosmeticSlots || [], pickedIn) : [];
 }
 
 export function slotData(slot: string): CosmeticSlot | null {
@@ -130,12 +145,12 @@ export function favoriteCosmetics(): Look[] {
   return out;
 }
 
-/** Every look whose name matches, across all slots: the global search reaches these too. */
+/** Every look whose name or Chinese hero label matches, across all slots. */
 export function searchCosmetics(q: string): Look[] {
   const out: Look[] = [];
   for (const s of cosmeticSlotList()) {
     for (const o of s.options) {
-      if (o.name.toLowerCase().includes(q)) out.push({ slot: s.slot, o });
+      if (cosmeticMatchesSearch(`${o.name} ${cosmeticName(o.name)}`, q, s.heroLabel)) out.push({ slot: s.slot, o });
     }
   }
   return out;
@@ -146,5 +161,5 @@ export function filterCosmetics(list: Look[]): Look[] {
   const f = view.filters;
   let out = f.installedOnly ? list.filter(({ slot, o }) => pickedIn(slot)?.itemId === o.id) : list;
   if (f.favOnly) out = out.filter(({ slot, o }) => isFav(COSMETIC_PREFIX + slot, cosmeticFavValue(slot, o)));
-  return sortMods(out, f.sort, ({ o }) => o.name);
+  return sortMods(out, f.sort, ({ o }) => cosmeticName(o.name));
 }

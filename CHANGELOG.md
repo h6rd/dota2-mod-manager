@@ -2,6 +2,214 @@
 
 What changed in each release. The app updates itself, so you get all of this without reinstalling.
 
+## 2.16.0
+
+### The Halloween update
+
+Something has carved its way into the app, and dota2modmanager.com has a new secret of its own.
+Nobody is going to tell you where. Eight heroes know the way.
+
+### The site
+
+- A warning about copies of this app that go around under other names, some of them paid or
+  asking for a login, with a page on how to tell the real one: dota2modmanager.com/docs/copies/.
+- On a phone, the comparison table on the front page no longer squeezes each row's name into a
+  quarter of its card, and the download menu no longer opens past the edge of the screen.
+- Link previews show each mod's picture at its real size.
+
+## 2.15.0
+
+### A link to one mod
+
+A link like `d2mm://mod/heroes/Tidehunter%20Arcana/Style%20II` now opens that mod's window in the
+catalog, on the style it names, from whichever tab you are on. Like a preset link, it installs
+nothing. If the app was closed, the link starts it and the window opens as soon as the catalog has
+loaded. "Open in Mod Manager" on a mod's page at dota2modmanager.com opens it this way.
+
+### Terrorblade's arcana keeps your colour
+
+The colour you pick for Terrorblade's arcana in Catalog → Tools now holds when the item builder puts
+the arcana on as well. Before, the builder's copy went back to Reflection's Shade wherever the game
+read that one. A purple or green arcana is now that colour all over: most of its particles used to
+keep the red they were made with. Thanks to J0nathan550.
+
+### All of Recently added
+
+The catalog's front page showed twelve recently added mods and no way to the rest. Show all in that
+strip now opens every one of them as a grid, newest first, with the usual sort and the installed and
+starred filters. Thanks to solanafl1pper for asking.
+
+### Fixed
+
+- On Linux, item pictures and hero portraits load again. The app downloaded the Windows build of
+  Source2Viewer, which Linux refuses to run, and every picture failed quietly. It now downloads the
+  Linux build. Thanks to J0nathan550.
+- On Linux, the app's own icon shows in the dock and the app menu beside its window.
+- An item the builder puts in a slot whose stock item has no model of its own (Earthshaker's head,
+  for one) now says it shows only until you reconnect to a match: after a reconnect the game draws
+  ERROR in its place. The builder's other picks keep their models after a reconnect, where some of
+  them used to fall back to the plain hero. Thanks to J0nathan550.
+
+### The site
+
+dota2modmanager.com is rebuilt around the catalog. Every mod has a page of its own, with its picture
+in a chat's link preview, and so do heroes and the people who make the mods. The catalog searches,
+filters and goes through all the mods a page at a time, and the mods you collect there open in the
+app as one preset. The search in the header finds mods, heroes by their nicknames too, and authors.
+The guides show the app itself, and What's new lists every release.
+
+## 2.14.0
+
+### Presets keep your looks
+
+A preset now remembers the item builder's picks and the free looks that were on when you saved it,
+such as weather, a courier or a HUD. Applying it puts each look back in its slot. Slots the preset
+does not name keep what they have, so a courier you picked later stays on. The preset's card counts
+the looks and shows their pictures, and a preset you share as a file or a link carries them too.
+Presets saved before this update keep no looks and leave yours as they are. Looks only work with
+safe mode off, and the app tells you when you apply one while it is on. Thanks to J0nathan550 for
+asking.
+
+### No more black window at start
+
+With a lot of items picked, the first start after an update could leave the window black until the
+app had built them all again. The app now opens the window at once and builds the items behind it,
+in short steps, so the window keeps drawing. Play waits until the build is done. The catalog also
+no longer waits for the list of free looks before it shows. Thanks to J0nathan550 for the report.
+
+### Fixed
+
+- In Chinese, catalog titles with Search Bar or Top Bar no longer say "staff", and Planetfall,
+  Pandora the Packwyrm and Shroomy have their official Chinese names. Thanks to F21HGG.
+
+## 2.13.0
+
+### Broken arcanas fixed
+
+J0nathan550 compiled the arcanas that broke in the item builder again by hand, and the builder now
+puts on his fixed versions: Razor runs facing forward, Pudge's back is whole, Juggernaut has all his
+runs and attacks. That covers Crystal Maiden, Drow Ranger, Earthshaker, Juggernaut, Legion
+Commander, Pudge, Razor, Rubick, Skywrath Mage, Spectre's second style, Terrorblade and Windranger,
+and their Has bugs and Broken marks are gone. For Crystal Maiden and Rubick the fix covers the
+first style; their other styles build from the game's files as before.
+
+The app downloads a fixed arcana the first time you put it on and keeps it. Until the download
+finishes, the arcana goes on from the game's files, and the fixed one replaces it on its own. Any
+other item you pick for one of the arcana's slots still wins that slot. Terrorblade's arcana in
+Catalog → Tools builds from the fixed version too, in the colour you choose.
+
+### Io is checked
+
+Io's items, its arcana Benevolent Companion included, have been played through the builder and
+work, so they no longer say Not checked.
+
+### The item builder keeps up
+
+Putting an item on now takes about a quarter of a second, however many you already have on. Before,
+every item built all the others again: the thirtieth took twelve seconds and froze the window. The
+app stays responsive while it builds, a longer build shows its progress on the bar at the bottom,
+and Play waits for the build to finish before it starts the game. A friend's preset with items in
+it builds once, not once per item.
+
+Settings → About now credits J0nathan550 for the arcanas. Thank you, J0nathan550.
+
+## 2.12.0
+
+### Arcanas in the item builder
+
+With safe mode off, Cosmetics → Items now offers every hero's arcana along with the rest of their
+items. An item that comes in several styles lets you pick the style, and the builder brings its
+sounds and voice lines, the hero's portrait, minimap icon and ability icons with it. A few arcanas
+are not right yet. Their card says Has bugs or Broken, and before you put one on the window tells
+you what goes wrong: Razor walks facing backwards, for example. Io is in the builder for the first
+time, its arcana included, and its items say Not checked until somebody has played them.
+
+Items you already picked are built again once after this update, and after any later update that
+changes how they are built, so a fix reaches them without picking them again. Thanks to J0nathan550,
+who wrote this and played every arcana through it.
+
+### The app in Simplified Chinese
+
+Choose 简体中文 on the first start or in Settings. Hero and item names come from your own game's
+Chinese text, and the catalog searches in Chinese and by the original names. Anything new shows in
+English until it is translated. Thanks to F21HGG.
+
+### A proxy for downloads
+
+Settings → Download cache now has a field for an HTTP or HTTPS proxy. Test it, save it, and the
+catalog, mods and tools download through it; leave it empty to connect directly. The installed
+app's own updates still connect directly. When a download fails on the network, the error now
+suggests a proxy or a VPN. Thanks to ezvacss.
+
+### A screen reader hears more
+
+A message that pops up, such as a mod installed or an error, is now read out, inside a mod's window
+too, and the reader is told which section and which category are open.
+
+### Fixed
+
+- In My mods, a mod whose picture does not load keeps its row the right shape.
+- The grey captions, such as the category under a card's name, are a little brighter, so they stay
+  readable over the lighter part of the background.
+- The style dots on a card sit a pixel further apart, so each one is easier to hit.
+- The installed app can no longer be run as plain Node.js or have a debugger attached, and it loads
+  only its own code.
+
+## 2.11.0
+
+### A crash no longer leaves half a mod behind
+
+Installing a mod writes several files into the game, and the app now notes each step before it
+takes it. If the app closes in the middle, from Task Manager, a Windows update or a power cut, the
+next start either finishes the change or takes it back. You get the mod whole or not at all, and
+My mods agrees with the game folder.
+
+The app also saves your library and settings in one step. A save cut short used to leave My mods
+empty, with your mods listed as somebody else's files. A write that failed halfway, on a full disk
+for example, could leave the mod it replaced renamed to .mmtx; the app now puts it back.
+
+### The keyboard reaches everything
+
+The name on a catalog card is now a button: Tab to it and press Enter to open the mod. Install it
+from there, and remove it in My mods, without touching the mouse. A window takes the focus when it
+opens, Tab stays inside it, and closing it brings you back to where you were. Screen readers now
+hear names for the sort, hero and language lists, and stop reading icons out as words like
+check_circle.
+
+### The window can only ask for what its buttons do
+
+The app checks every request from its window: where it came from and what it carries. The page can
+no longer change the game folder or your Discord account, and the Folder button of a tool opens
+only a tool the app installed.
+
+### Each release is tried as an update first
+
+Before a release goes out, CI installs the previous one, gives it a mod and a favourite, installs
+the new one over it and checks that both are still there.
+
+## 2.10.0
+
+### Terrorblade's arcana in any colour
+
+Catalog → Tools now opens with Terrorblade's arcana. Point at a colour and the arcana's picture
+takes it before anything is built. Install the whole arcana puts it in My mods. The app builds it
+from your own game files: the model, the horns, the glow and the ability icons, so you see the
+arcana without owning it. If you own it, Own the arcana? Colour only recolours yours.
+
+The kill effect and the arcana's sounds come with the item itself, so the mod has neither. The mod
+loads before the catalog's hero mods, so an arcana mod from there does not cover your colour. If a
+Dota update changes the files it is built from, the app builds it again in the same colour. To
+pick another colour later, use Recolour in its menu in My mods.
+
+### Catalog mods say when a new version is out
+
+When an author replaces a mod in the catalog, My mods marks yours as a new version and offers
+Update all. An update keeps the mod's place in the load order, and keeps it on or off as it was.
+
+### The pre-patch mark comes off from the menu
+
+If a mod marked pre-patch works fine for you, remove the mark from its menu in My mods.
+
 ## 2.9.0
 
 ### Mods load again after Dota's 7 October update

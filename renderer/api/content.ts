@@ -23,6 +23,16 @@ export interface CatalogApi {
   load: (force?: boolean) => Promise<CatalogData & { stale?: boolean; fetchedAt?: number }>;
   /** which whole-map terrains were built for an older map than the game's */
   terrainAges: () => Promise<{ mapAt: number | null; ages: Record<string, number>; stale: Record<string, boolean>; error?: string }>;
+  /** a d2mm://mod/ link clicked outside the app: the mod it names, or null when it names none */
+  onModLink: (cb: (link: ModLink | null) => void) => void;
+}
+
+/** What a d2mm://mod/ link names (src/deep-links.ts parses it). */
+export interface ModLink {
+  cat: string;
+  name: string;
+  /** the look's label, when the link picks one */
+  style: string | null;
 }
 
 /** The schema patch's state: whether our line is in gameinfo, and what else is (src/schema-service.ts). */
@@ -44,7 +54,8 @@ export interface PatchApi {
   onRepair: (cb: (st: RepairState) => void) => void;
 }
 
-interface ToolState { name: string; ready: boolean; installedBytes: number; downloadBytes: number; [key: string]: unknown }
+/** A tool as src/toolchain.ts state() describes it; `available` is false where this machine has no build of it. */
+interface ToolState { name: string; ready: boolean; available: boolean; installedBytes: number; downloadBytes: number; [key: string]: unknown }
 
 export interface ToolsApi {
   state: () => Promise<{ tools: ToolState[]; iconCacheBytes: number }>;
@@ -60,7 +71,7 @@ export interface ConfigApi {
 }
 
 export interface CosmeticsApi {
-  slots: () => Promise<{ slots: CosmeticSlot[]; sets: CosmeticSet[] } & Record<string, unknown>>;
+  slots: () => Promise<{ slots: CosmeticSlot[]; sets: CosmeticSet[]; names?: Record<string, string> } & Record<string, unknown>>;
   /** pictures by name; the clips among them come back to be decoded here (ui/cosmetic-icons.ts) */
   icons: (names: string[]) => Promise<{ pictures: Record<string, string | null>; decode: string[] }>;
   heroPortraits: (ids: string[]) => Promise<Record<string, string>>;
@@ -100,6 +111,8 @@ export interface PresetRecord {
   absent?: { name: string; categoryId?: string }[];
   /** what a link could carry of it */
   link?: { count: number; skipped: unknown[] };
+  /** the looks it puts on, slot by slot (src/library.ts picksOn) */
+  picks?: { slot: string; itemId: string; name: string; effectId: string }[];
   /** a received preset, waiting to be installed */
   wanted?: unknown;
   source?: { author?: string; note?: string };

@@ -10,6 +10,7 @@ import { t } from './i18n.ts';
 import { heroIdFromName } from './hero-names.ts';
 import { electron } from './electron.ts';
 import { errorText } from './error-text.ts';
+import { runSteps } from './steps.ts';
 import type { AppContext } from './app-context.ts';
 
 /** Register this module's channels, over the services and callbacks src/main.ts hands it. */
@@ -77,7 +78,8 @@ export function registerGameIpc({
 
   // Free cosmetics are generated from the installed game's own schema, so a weather or
   // courier Valve ships later appears in the list without an app update.
-  ipcMain.handle('cosmetics:slots', () => schemaService.cosmeticSlots());
+  // a step at a time: on the first start it is most of a second, and the catalog is asked for meanwhile
+  ipcMain.handle('cosmetics:slots', () => runSteps(schemaService.cosmeticSlotsSteps()));
 
   // One picture per tile, so opening a slot with 2000 items costs only what is on screen.
   //
@@ -198,12 +200,15 @@ export function registerGameIpc({
   });
 
   // A pick is a library record like any other mod: mods:setEnabled/mods:remove already
-  // handle it (see touchesSchema above), this is only for the initial choice.
-  ipcMain.handle('cosmetics:pick', (e, slot, itemId, itemName, effectId) => {
+  // handle it (see touchesSchema above), this is only for the initial choice. The table is built
+  // in the background and answered once it is written: the app goes on meanwhile, and the bar at
+  // the bottom counts a long build.
+  ipcMain.handle('cosmetics:pick', async (e, slot, itemId, itemName, effectId) => {
     const stop = blocked('cosmetics');
     if (stop) return stop;
     try {
-      const rec = schemaService.pickCosmetic(slot, itemId, itemName, effectId);
+      const rec = schemaService.pickCosmetic(slot, itemId, itemName, effectId, { write: false });
+      await schemaService.refreshInBackground();
       return { ok: true, record: rec };
     } catch (err) {
       return { error: errorText(err) };
@@ -211,11 +216,13 @@ export function registerGameIpc({
   });
 
   // A whole set, one write to the game for all its pieces (schema-service pickSet).
-  ipcMain.handle('cosmetics:pickSet', (e, setId) => {
+  ipcMain.handle('cosmetics:pickSet', async (e, setId) => {
     const stop = blocked('cosmetics');
     if (stop) return stop;
     try {
-      return { ok: true, ...schemaService.pickSet(setId) };
+      const picked = schemaService.pickSet(setId, { write: false });
+      await schemaService.refreshInBackground();
+      return { ok: true, ...picked };
     } catch (err) {
       return { error: errorText(err) };
     }
@@ -238,6 +245,9 @@ export function registerGameIpc({
     try {
       const record = arcana.install(color, mode);
       afterDeployMaster();
+      // the builder's copy of Terrorblade's base takes the new colour (src/arcana-base-color.ts);
+      // the window does not wait on the table, the bar at the bottom counts it
+      void schemaService.refreshInBackground();
       return { ok: true, record };
     } catch (err) {
       return { error: errorText(err) };

@@ -43,6 +43,10 @@ export interface CosmeticOption {
   id: string;
   name: string;
   tags?: string[];
+  /** an item builder wearable's styles by name, when it has more than one (src/item-builder-styles.ts) */
+  styles?: string[];
+  /** what is known to go wrong with it in the game, or that nobody has checked (src/arcana-notes.ts) */
+  note?: { status: 'issues' | 'broken' | 'untested'; text: string };
 }
 
 /** A slot of free cosmetics, or one of the item builder's (kind 'item-effect', slot 'item:...'). */
@@ -56,6 +60,8 @@ export interface CosmeticSlot {
   icon?: string;
   options: CosmeticOption[];
   effects?: { id: string; name: string }[];
+  /** a persona's slot (src/item-builder-personas.ts): `part` false where the persona is picked */
+  persona?: { hero: string; part: boolean };
 }
 
 /** One piece of an item set, and whether the builder can put it on (src/item-builder.ts itemSets). */

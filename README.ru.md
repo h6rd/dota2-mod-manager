@@ -28,6 +28,7 @@
   <img src="https://img.shields.io/github/last-commit/dota2modmanager/dota2-mod-manager?style=flat-square&label=%D0%BF%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B9%20%D0%BA%D0%BE%D0%BC%D0%BC%D0%B8%D1%82&labelColor=211f26&color=8b6ff0" alt="Последний коммит">
   <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-c4b5fd?style=flat-square&labelColor=211f26" alt="Лицензия"></a>
   <a href="https://dota2modmanager.com/ru/"><img src="https://img.shields.io/badge/%D1%81%D0%B0%D0%B9%D1%82-dota2modmanager.com-c4b5fd?style=flat-square&labelColor=211f26" alt="Сайт"></a>
+  <a href="https://deepwiki.com/dota2modmanager/dota2-mod-manager"><img src="https://img.shields.io/badge/%D1%81%D0%BF%D1%80%D0%BE%D1%81%D0%B8%D1%82%D1%8C-DeepWiki-c4b5fd?style=flat-square&labelColor=211f26" alt="Спросить DeepWiki об этом репозитории"></a>
   <a href="mailto:hello@dota2modmanager.com"><img src="https://img.shields.io/badge/%D0%BF%D0%BE%D1%87%D1%82%D0%B0-hello%40dota2modmanager.com-c4b5fd?style=flat-square&labelColor=211f26" alt="Почта: hello@dota2modmanager.com"></a>
   <a href="https://discord.gg/PBvG8D9MxT"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FPBvG8D9MxT%3Fwith_counts%3Dtrue&query=%24.approximate_presence_count&label=discord&suffix=%20%D0%BE%D0%BD%D0%BB%D0%B0%D0%B9%D0%BD&style=flat-square&labelColor=211f26&color=5865f2&logo=discord&logoColor=white" alt="Discord: сколько человек онлайн на сервере каталога D2PFX, где у приложения свой канал"></a>
   <a href="https://discord.gg/PBvG8D9MxT"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FPBvG8D9MxT%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&label=%D1%83%D1%87%D0%B0%D1%81%D1%82%D0%BD%D0%B8%D0%BA%D0%BE%D0%B2&style=flat-square&labelColor=211f26&color=5865f2" alt="Discord: участников на сервере каталога D2PFX"></a>
@@ -48,6 +49,15 @@
 <img src="site/public/screenshots/dota-2-mod-manager-catalog-ru.webp" alt="Каталог" width="100%">
 
 </div>
+
+> [!WARNING]
+> **По сети ходят копии этого приложения.** Переименованные сборки Dota 2 Mod Manager раздают
+> и продают как чужие лаунчеры, без исходного кода и без упоминания авторов. Настоящий бесплатный,
+> платной версии у него нет, и логин Steam он никогда не просит. Не доверяй лаунчеру, который не
+> показывает исходный код, молчит, на чём сделан, просит подписку или деньги или требует войти.
+> Скачивай только с [dota2modmanager.com](https://dota2modmanager.com/ru/) или со страницы
+> [релизов](https://github.com/dota2modmanager/dota2-mod-manager/releases) этого репозитория.
+> [Как отличить настоящий](https://dota2modmanager.com/ru/docs/copies/).
 
 > [!NOTE]
 > С Valve не связаны. Все моды здесь клиентские: их не видит никто, кроме тебя, и чужую игру они
@@ -136,8 +146,10 @@ sha256sum --check --ignore-missing SHA256SUMS
 - Дота монтирует **одну** папку, названную по языку **озвучки**. Приложение ставит этот язык в
   настройках самой игры и туда же ставит моды — **без параметра запуска**, и это стоит перечитать
   дважды. [Почему так работает](https://dota2modmanager.com/ru/docs/language/)
-- VPK-моды ложатся как `pakNN_dir.vpk`, слоты с 10 по 99. Кому надо грузиться первым, достаются
-  `pak02`-`pak09`. [Слоты и порядок загрузки](https://dota2modmanager.com/ru/docs/vpk/)
+- VPK-моды ложатся как `pakNN_dir.vpk`. Деревья, река, шейдеры, эффекты героев и другие
+  категории, которым надо грузиться первыми, получают `pak02`-`pak29`, остальные начинаются с
+  `pak30`. `pak64` - собственный текст-плашка приложения, `pak65`-`pak67` оставлены Minify.
+  [Слоты и порядок загрузки](https://dota2modmanager.com/ru/docs/vpk/)
 - Выключенный мод переименовывается в `.off`: игра его пропускает, файл остаётся
 - Шрифты и курсоры уезжают в папки игры, оригиналы сохраняются заранее
 - Всё, что пишется в папку игры, делается одной транзакцией: упало на середине — откатывается
@@ -184,6 +196,7 @@ v1.14rc7 проверяет принадлежность перед чистко
 | [ARCHITECTURE.md](ARCHITECTURE.md) · [docs/API.md](docs/API.md) | Кто за какое решение отвечает и что экспортирует каждый модуль |
 | [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md) · [SECURITY.md](SECURITY.md) | Как работать над проектом, с ИИ-ассистентом и без, и как сообщить о дыре |
 | [docs/assurance-case.md](docs/assurance-case.md) | Что может пойти не так, что этому мешает и какой тест это держит |
+| [docs/evidence.md](docs/evidence.md) | Каждое заявление проекта: какая задача CI его проверяет и как проверить самому (на английском) |
 | [TRADEMARK.md](TRADEMARK.md) · [Политика подписи кода](docs/code-signing-policy.ru.md) | Что даёт лицензия и чего она не даёт, и что подписано сегодня |
 | [Статус](https://dota2modmanager.betteruptime.com) | Отвечают ли прямо сейчас фид обновлений, зеркало, каталог и сайт |
 | [PRIVACY.ru.md](PRIVACY.ru.md) | Что собирается (ничего) и каждый адрес, куда приложение может пойти |
@@ -304,7 +317,7 @@ GPL — в [NOTICE](NOTICE).
 | [GameTracking-Dota2](https://github.com/SteamTracking/GameTracking-Dota2) | Каждая сборка Доты текстом. Её читают проверки репозитория, чтобы сказать, что поменял патч. Не приложение | Не указана. Читается по сети, ничего из неё сюда не копируется |
 
 <!-- facts:deps-ru -->
-В `package.json` их 14: `adm-zip` и `electron-updater` едут внутри приложения, `motion`, `react` и `react-dom` собраны в его окно, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `electron`, `electron-builder`, `eslint`, `fast-check`, `typescript` и `vite` только собирают или проверяют его.
+В `package.json` их 16: `adm-zip`, `electron-updater` и `undici` едут внутри приложения, `motion`, `react` и `react-dom` собраны в его окно, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `axe-core`, `electron`, `electron-builder`, `eslint`, `fast-check`, `typescript` и `vite` только собирают или проверяют его.
 <!-- /facts:deps-ru -->
 Тесты не зависят ни от чего, а в `tools/` одна зависимость, `vite`: она собирает окно. Чтение и запись VPK, разбор KeyValues, защита от zip-бомб и логика обновления написаны
 здесь, потому что каждая зависимость — это чужак с правом записи в папку игры на десятках тысяч
@@ -323,6 +336,12 @@ GPL — в [NOTICE](NOTICE).
 сообщества моддеров Доты. Это приложение — десктопный клиент к их каталогу, и каждая карточка
 мода в нём называет автора.
 
+**[J0nathan550](https://github.com/J0nathan550)** добавил арканы в конструктор предметов, прогнал
+через него каждую и заново собрал вручную те, что ломаются на файлах Valve: теперь Razor бегает
+вперёд, а у Juggernaut на месте все анимации. Исправленные арканы лежат в
+[d2pfx-arcana-fixes](https://github.com/J0nathan550/d2pfx-arcana-fixes), приложение скачивает их
+оттуда.
+
 **Обновления Доты** читаются из [GameTracking-Dota2](https://github.com/SteamTracking/GameTracking-Dota2)
 от [SteamTracking](https://github.com/SteamTracking): там каждая сборка Доты появляется текстом в
 течение часа после выхода. На этом построен issue
@@ -336,6 +355,12 @@ GPL — в [NOTICE](NOTICE).
 Все остальные страницы, которые сюда ссылаются, от README каталога до проектов, выросших из этого
 кода, собраны с датами в [MENTIONS.md](MENTIONS.md). То немногое, что написал сам автор, вынесено
 в отдельный список.
+
+<br>
+
+## Спонсоры
+
+Спонсор: [VGTopup](https://vgtopup.com/), магазин пополнения игр. Платное размещение.
 
 <br>
 

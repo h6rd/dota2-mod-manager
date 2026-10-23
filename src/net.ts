@@ -18,9 +18,10 @@
 // The code is kept as three files: src/net-mirrors.ts is the chain and how each host is doing,
 // src/net-fetch.ts asks along it, and src/net-download.ts brings a file to disk through it.
 // Callers import from here.
-export { RAW_HOST, FAIL_THRESHOLD, COOLDOWN_MS, DEFAULT_MIRRORS, mirrorsFor, entriesFor, mirrorHealth, resetHealth, setMirrors, applyMirrors } from './net-mirrors.ts';
+export { RAW_HOST, FAIL_THRESHOLD, COOLDOWN_MS, DEFAULT_MIRRORS, mirrorsFor, entriesFor, mirrorHealth, resetHealth, setMirrors, applyMirrors, wellFormedMirror } from './net-mirrors.ts';
 export type { Mirror, Entry } from './net-mirrors.ts';
 export { fetchMirrored, fetchText } from './net-fetch.ts';
 export type { FetchOptions } from './net-fetch.ts';
 export { sha256, downloadFile } from './net-download.ts';
+export { closeDownloadProxy, setDownloadProxy, testDownloadProxy, validateDownloadProxy } from './download-proxy.ts';
 export type { Download } from './net-download.ts';

@@ -8,6 +8,7 @@ import { MotionConfig } from 'motion/react';
 import { pane } from '../core/router.ts';
 import { Reveal } from '../motion/Reveal.tsx';
 import { Swap } from '../motion/Swap.tsx';
+import { ProxyControl } from './ProxyControl.ts';
 
 export interface SettingsModel {
   key: number;
@@ -18,6 +19,7 @@ export interface SettingsModel {
   dotaPath: string;
   dotaValid: boolean;
   cache: string;
+  proxy: string;
   /** the Source 2 toolchain: a size and a button, never downloaded on its own */
   vrf: { ready: boolean; size: string } | null;
   catalogUpdated: string;
@@ -35,6 +37,9 @@ export interface SettingsActions {
   detect: () => void;
   browse: () => void;
   clearCache: () => void;
+  proxySave: (value: string) => Promise<void>;
+  proxyTest: (value: string) => Promise<void>;
+  proxyClear: () => Promise<void>;
   tool: (install: boolean) => Promise<void>;
   refreshCatalog: () => void;
   adult: () => void;
@@ -95,10 +100,11 @@ function SettingsScreen({ m, actions }: { m: SettingsModel; actions: SettingsAct
         <div className="settings-row">
           <span className="settings-label">{L`Язык`}</span>
           <div className="select-wrap">
-            <span className="ms">translate</span>
-            <select className="input" id="uiLangSelect" value={m.uiLang} onChange={(e) => actions.language(e.target.value)}>
+            <span className="ms" aria-hidden="true">translate</span>
+            <select className="input" id="uiLangSelect" aria-label={L`Язык`} value={m.uiLang} onChange={(e) => actions.language(e.target.value)}>
               <option value="en">English</option>
               <option value="ru">Русский</option>
+              <option value="zh-CN">简体中文</option>
             </select>
           </div>
         </div>
@@ -142,6 +148,10 @@ function SettingsScreen({ m, actions }: { m: SettingsModel; actions: SettingsAct
           <button className="btn btn-sm" id="clearCacheBtn" onClick={actions.clearCache}>{L`Очистить`}</button>
         </div>
         <div className="settings-hint">{L`Скачанные архивы, чтобы не качать повторно. Удаление ничего не сломает.`}</div>
+        <div className="settings-row spaced">
+          <span className="settings-label">{L`Прокси загрузок`}</span>
+          <ProxyControl value={m.proxy} onSave={actions.proxySave} onTest={actions.proxyTest} onClear={actions.proxyClear} />
+        </div>
       </Block>
 
       {m.vrf && (
@@ -208,6 +218,11 @@ function SettingsScreen({ m, actions }: { m: SettingsModel; actions: SettingsAct
           <span className="settings-label">{L`Конструктор предметов`}</span>
           <span>h6rd, TheFleece</span>
           <a className="settings-link" id="builderLink" onClick={() => actions.open('https://github.com/h6rd')}>github.com/h6rd</a>
+        </div>
+        <div className="settings-row spaced">
+          <span className="settings-label">{L`Арканы в конструкторе`}</span>
+          <span>J0nathan550</span>
+          <a className="settings-link" id="arcanaCreditLink" onClick={() => actions.open('https://github.com/J0nathan550')}>github.com/J0nathan550</a>
         </div>
         <div className="settings-hint">
           {`© 2026 TheFleece · ${L`конструктор предметов`} © 2026 h6rd, TheFleece · GPL-3.0 · ${L`свободная программа без каких-либо гарантий`}`}

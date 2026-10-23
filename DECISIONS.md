@@ -16,10 +16,10 @@ The countable claims are held to the code by `test/decisions.test.js`, and the w
 about how long the main process's entry file is, how many test files there are, what the app depends on, where the
 fingerprint index is fetched from, whether there is a linter, which npm scripts exist, or whether
 a link in any document points at a file that is gone. The date below is left out of that on
-purpose: it records when a person last read the whole file, and a test that kept it current would
-be forging a review nobody did.
+purpose: it records when the whole file was last read against the repository, and a test that kept
+it current would be forging a read-through nobody did.
 
-Last gone over on 2026-09-10, at version 2.6.8.
+Last gone over on 2026-10-14, at version 2.11.0.
 
 ---
 
@@ -44,10 +44,12 @@ test passed, and nobody could install a mod in 2.6.5 or 2.6.6.
 *Check:* `npm run lint`, `eslint.config.js` for the rule list, and `.github/workflows/test.yml`,
 where it runs before the suite.
 
-### The app ships two dependencies
+### The app ships three dependencies
 
-`adm-zip` and `electron-updater` ship inside it; `electron`, `electron-builder`, `eslint`,
-`typescript` and `fast-check` only build and check it, and never reach a user's machine. The VPK reader and writer, the
+`adm-zip`, `electron-updater` and `undici` ship inside it. `undici` supplies the supported
+HTTP/HTTPS `ProxyAgent` used when a user configures a download proxy; implementing CONNECT and
+streaming transport here would duplicate a networking client in the app. `electron`, `electron-builder`, `eslint`,
+`typescript`, `fast-check` and `axe-core` only build and check it, and never reach a user's machine. The VPK reader and writer, the
 KeyValues parser, the zip guards, the mirror logic and the update checks are written here,
 because every dependency is a stranger with write access to a game folder on tens of thousands
 of machines. That is a bias rather than a ban: a pull request adding one has to say what it
@@ -60,14 +62,14 @@ the files as text, or never loaded a module that needs Electron. `no-undef` name
 a second, and a scope analyser is exactly the kind of thing not to write by hand - the version
 attempted here first reported 240 problems, of which one was real.
 
-`typescript` was added on 2026-09-16 for the same kind of reason, and the app is still plain
-JavaScript: nothing is compiled and nothing is emitted. It reads the JSDoc already written here
-and says where the code and its own documentation disagree. Its first run found a `require` that
-had never resolved, which had been answering two features with "Cannot find module" for as long as
-they existed, and three functions whose JSDoc described a different signature than the code below
-it. Inferring types across thirty thousand lines is not something to write by hand either. What is
-left is counted per file in `.github/typecheck-baseline.json`, and `tools/typecheck.mjs` refuses a
-run where that count grows.
+`typescript` was added on 2026-09-16 for the same kind of reason, when the app was still plain
+JavaScript: it read the JSDoc already written here and said where the code and its own
+documentation disagreed. Its first run found a `require` that had never resolved, which had been
+answering two features with "Cannot find module" for as long as they existed, and three functions
+whose JSDoc described a different signature than the code below it. Inferring types across thirty
+thousand lines is not something to write by hand either. Since then the main process and the window
+have become TypeScript themselves (below), and the count of what is left, per file in
+`.github/typecheck-baseline.json`, is zero; `tools/typecheck.mjs` refuses a run where it grows.
 
 `fast-check` was added on 2026-09-20, and it replaces something written here rather than adding a
 habit. The parsers were already fuzzed with generators of our own (`tools/fuzz-parsers.mjs`,
@@ -78,11 +80,20 @@ the difference between "an archive broke it" and "a name of one dot breaks it". 
 in `test/properties.test.js`, and the first of them already earns its keep: our hand-written crc32
 is checked against `zlib.crc32` on random bytes rather than on the cases somebody chose.
 
+`axe-core` was added on 2026-10-11, for the accessibility scenario in the simulator
+(`tools/sim/scenarios/a11y.js`). It holds the window to WCAG 2.0, 2.1 and 2.2 at level AA, which
+is a few hundred rules with years of edge cases behind each, the kind of thing that is wrong in its
+own ways when written by hand. It runs inside the simulated window and nowhere else; the installer
+does not carry `tools/`, and nothing in `src/` or `renderer/` imports it. What it cannot decide by
+itself, and what a keyboard and a screen reader need beyond its rules, is in
+[docs/accessibility.md](docs/accessibility.md).
+
 It also flips a check on the OpenSSF Scorecard, which recognises fuzzing in JavaScript only
 through a short list of libraries and not through generators of our own. That is a real reason and
 not the reason: the shrinking is.
 
-Seven more came on 2026-09-27 with the decision below, twelve devDependencies in all. `vite` and
+Seven more came on 2026-09-27 with the decision below, and `axe-core` on 2026-10-11 (above), thirteen
+devDependencies in all. `vite` and
 `@vitejs/plugin-react` build the window's page. `react`, `react-dom` and `motion` are written into
 that page once a screen imports them, which makes them part of the app in every sense but the
 installer's: Vite copies their code into `out/renderer`, and the packages themselves stay behind.
@@ -99,7 +110,7 @@ programme means. Reading and writing VPK archives is this repository's own code.
 
 *Check:* `src/vpk.ts`, and `test/vpk.test.ts`, which runs the writer against the reader.
 
-### The window is built by Vite, and moves to TypeScript and React
+### The window is built by Vite, in TypeScript and React
 
 Until 2026-09-27 the renderer was plain JavaScript with no build step, so that a reviewer reading
 renderer/app.js read the program itself. That cost more every month. The catalog screen reached
@@ -107,15 +118,16 @@ renderer/app.js read the program itself. That cost more every month. The catalog
 animation meant timing code written by hand. The size budget stopped the growth; it could not
 undo it.
 
-The page is now built by Vite into `out/renderer`, and the screens move to TypeScript and React
-one at a time, with Motion for animation: one component per file, and no new file past 300 lines.
+The page is now built by Vite into `out/renderer`, and every screen is TypeScript and React, with
+Motion for animation: one component per file, and no new file past 300 lines. The screens moved one
+at a time, and the last of them on 2026-10-02.
 Types catch a wrong property before a run does, and the model that writes most of this code makes
 fewer mistakes in TypeScript and React than in anything else, because that is what it has read the
 most of. `npm run dev` serves the page with hot reload.
 
 Tauri was weighed and not taken. On Windows its window is the same Chromium, but its back end is
 Rust: the VPK writer, the patcher and everything else that writes to a game folder would be
-rewritten, with 900 tests and the release pipeline, to make a 108 MB download about ten times
+rewritten, with the 900 tests of the time and the release pipeline, to make a 108 MB download about ten times
 smaller. 97% of downloads are the Windows installer, and nobody has asked for a smaller one.
 
 The build had to show first that it costs nothing. The same window built by Vite and loaded as
@@ -240,8 +252,8 @@ ruleset now requires a pull request and every check in `.github/required-checks.
 
 Since 17 September it also requires a CodeQL result with no new alert at High or higher. Pull
 request #62 had merged itself the day before with one, because the rule asked for the analysis to
-run and nothing about what it found. The deploy key the catalog bot pushes its index with is the
-one bypass: those commits are data, and they never touch code.
+run and nothing about what it found. Nothing bypasses the rule: the catalog bot's deploy key was
+the one exception until 2026-10-07, when its commits moved to the `catalog-data` branch (above).
 
 From 23 September to 2 October it also required an approving review from a maintainer who did not
 write the change, and a fresh one after every new push. A second maintainer had joined, and OpenSSF
@@ -256,9 +268,9 @@ Scorecard checks that count approvals score lower for it, and that is the price.
 A pull request also goes through a merge queue since the repository moved into an organization,
 which is where GitHub offers one. The queue puts the change on top of the newest main, runs the
 required checks there once more, and only then lands it. That is what lets the rule require a
-branch to be up to date without the cost it had before: the catalog bot pushes to main several
-times a day, and without the queue every open pull request would have had to be updated and
-rerun by hand after each push. A probe repository showed a pull request left behind by such a push
+branch to be up to date without the cost it had before: the catalog bot pushed to main several
+times a day until 2026-10-07, every merge still moves main, and without the queue every open pull
+request would have to be updated and rerun by hand after each of them. A probe repository showed a pull request left behind by such a push
 going through the queue on its own, with CodeQL, the code scanning rule and a skipped
 pull-request-only check in the way.
 
@@ -343,29 +355,34 @@ is that too few people know it exists.
 
 What makes it affordable is that these files are append-only. A picture arrives, and that is the
 last time it is written, so the pack grows by what the catalog gains rather than by what anyone
-edits.
+edits. Since 2026-10-07 the pictures the catalog gains land on `catalog-data` with the rest of the
+bot's files, and the site build copies them in. `main` keeps the 1,584 it held that day, and stops
+growing.
 
 *Check:*
 ```
 git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize:disk) %(rest)' | awk '$1=="blob"&&$4~/^site\/public\/mods\//{n+=$3} END{print n/1048576" MB"}'
 ```
 
-### TypeScript stays on 5.x
+### TypeScript stays on 5.x, for its compiler API
 
-The type check here is not a compiler step. Nothing is emitted; it reads the JSDoc the code
-already carries and counts what disagrees, and `.github/typecheck-baseline.json` holds that count
-so it can only fall.
+The type check here is not a compiler step for the main process: nothing is emitted, and Node
+strips the types when it loads a file (below). `.github/typecheck-baseline.json` holds the count of
+errors, which is zero, so it can only stay there.
 
-TypeScript 7, the Go rewrite, reads `@param {object}` far more strictly than 5.x does. The same
-tree goes from 66 known errors to 303, nearly all of them `Property does not exist on type
-'object'`. Measured on 2026-09-22, and the module-resolution change that 7 also forces was ruled
-out separately: 5.9.3 on those same settings gives 64.
+On 2026-09-22 TypeScript 7, the Go rewrite, took the tree from 66 known errors to 303, nearly all
+of them `Property does not exist on type 'object'` in JSDoc, and taking it meant writing out those
+shapes first. That reason is gone. Measured again on 2026-10-14, now that the code is TypeScript:
+7.0.2 checks all four projects with no errors, the main process's 304 files in a tenth of a second.
 
-Taking 7 means writing out the shapes behind those annotations first, across forty-one files.
-That is worth doing, and it is a piece of work rather than a dependency bump, so the bot is told
-to stop offering the major version until somebody does it.
+What still holds it back is that 7 has no stable compiler API. `test/api-types.test.js` and
+`test/suite-integrity.test.ts` parse source through `ts.createSourceFile`, and the `typescript` 7
+package offers only an API it marks unstable. Moving those two tests to it, or keeping 5.x beside
+7 for them alone, is a piece of work rather than a dependency bump, so the bot is told to stop
+offering the major version until somebody does it.
 
-*Check:* `.github/dependabot.yml`, the `ignore` block for the app's dependencies.
+*Check:* `.github/dependabot.yml`, the `ignore` block for the app's dependencies, and
+`npx -p typescript@7 tsc -p src/tsconfig.json --noEmit`, which prints nothing.
 
 ### The main process is TypeScript, with no build step
 
@@ -397,6 +414,20 @@ without anything else changing.
 
 *Check:* `src/tsconfig.json` and `test/tsconfig.json`, both strict and with nothing in the
 baseline, run by `npm run typecheck`; `ls src/*.js` finds nothing.
+
+### Simplified Chinese is kept by the people who wrote it, and falls back to English
+
+The project writes Russian and English itself, and a string without its English twin fails the
+build (`tools/check-i18n.js`). Simplified Chinese arrived on 2026-10-14 from a contributor,
+[#240](https://github.com/dota2modmanager/dota2-mod-manager/pull/240), who keeps it up on a best-effort
+basis, about once a week. Nothing here waits for them: a string with no Chinese yet shows in
+English, in the window, in native dialogs and in the removal window, and never as an empty label
+or a key. Cosmetic names are read from the player's own game in Chinese where Valve has one, and
+catalog titles and guide text from the contributor's dictionaries, which only display and never
+change what is installed or where a link goes.
+
+*Check:* `translation` in `renderer/i18n.js` and `t` in `src/i18n.ts` for the fallback, and
+`test/chinese.test.js`, `test/chinese-catalog.test.ts` and `test/chinese-heroes.test.ts`.
 
 ### The anti-cheat notice is rewritten, and there is no switch for it
 
@@ -443,11 +474,14 @@ Windows SmartScreen says "unknown publisher" on first run. SignPath Foundation, 
 source for free, turned the application down in August 2026 for not having enough public
 visibility yet; a commercial certificate runs a few hundred dollars a year against a program
 nobody pays for. What stands in for a signature: every binary is built by a public workflow from
-a public commit, and the update metadata beside it carries a SHA-512 of the file.
+a public commit; every release carries `SHA256SUMS`, a Sigstore build-provenance attestation that
+`gh attestation verify` checks against this repository, and an SBOM; the update metadata beside the
+installer carries a SHA-512 of it; and the notes give the VirusTotal verdict for each file.
 
-*Check:* the run that produced any release under
-<https://github.com/dota2modmanager/dota2-mod-manager/actions/workflows/release.yml>, and `latest.yml`
-in the release assets.
+*Check:* `gh attestation verify Dota-2-Mod-Manager-Setup.exe --repo dota2modmanager/dota2-mod-manager`
+on a downloaded installer, the run that produced any release under
+<https://github.com/dota2modmanager/dota2-mod-manager/actions/workflows/release.yml>, and
+[docs/evidence.md](docs/evidence.md) for the rest.
 
 ### Two maintainers, and one of them holds the keys
 
@@ -546,14 +580,53 @@ error that left installing dead in 2.6.5 and 2.6.6
 ([#19](https://github.com/dota2modmanager/dota2-mod-manager/issues/19)). These jobs are required before
 a pull request merges and before a release builds.
 
-What it still does not cover: one mod of one shape, a zip holding a single VPK, in one category.
-Packs, load order, cursors, the schema patch, presets and imports are never driven through the
-window. A pull request tries the source tree; the installer and the AppImage are tried only on a
-tag, by `.github/workflows/release.yml` against the draft release, so a packaging mistake is found
-at release time rather than at merge time.
+Since 2026-10-11 the same tool also answers the removal window the uninstaller opens, three ways,
+and checks the game folder is byte for byte what it was. The simulator (`tools/sim/`) drives more
+through the window on every pull request, on Windows and on Linux: presets, imports, the item
+builder, mod switches checked against what the game would load, and the keyboard alone. And
+`.github/workflows/update.yml` builds an installer from a pull request that touches the install path
+and runs it over the last release the way an update arrives.
+
+What it still does not cover: the required check installs one mod of one shape, a zip holding a
+single VPK, in one category; the simulator and the update rehearsal are not required, so a red one
+does not stop a merge by itself, and the radar reports it the next morning. The AppImage is built
+on every pull request and installed only on a tag.
 
 *Check:* `.github/workflows/e2e.yml` and the `e2e-linux` and `e2e-windows` artifacts it uploads:
-a screenshot per launch, the window's own step report and the app log.
+a screenshot per launch, the window's own step report and the app log; `.github/workflows/sim.yml`
+and `.github/workflows/update.yml`.
+
+### A preset puts its looks back slot by slot, and leaves the others
+
+Until 2.14.0 a preset held mods only, on purpose: applying a build used to switch off every free
+look it did not name, and people lost their courier and wards to a preset that had never mentioned
+them. So the looks were left out, and a build made with the item builder came back without any of
+it ([#284](https://github.com/dota2modmanager/dota2-mod-manager/issues/284)).
+
+Now a preset keeps the looks that were on, slot by slot, apart from its mods. Applying it puts each
+look on in its slot and leaves every slot it does not name as it is. The cost: a preset cannot say
+"nothing in this slot", and switching from one hero's build to another's leaves the first hero
+dressed. A preset saved before 2.14.0 keeps no looks and changes none.
+
+*Check:* `node --test test/presets-service.test.ts`, the tests under "the looks in a preset".
+
+### Nothing holds the main process for long
+
+Electron runs the main process's JavaScript on the thread that draws the window. In 2.13.0 a new
+version of the app made every built item table stale, and the repair at start built it again in
+one go before the window opened; the build in the background still held the thread for most of a
+second at a time. With many items picked the window stayed black
+([#286](https://github.com/dota2modmanager/dota2-mod-manager/issues/286)).
+
+Long work in the main process is now a generator that pauses every few dozen milliseconds
+(`src/steps.ts`): run at once with `drain` where the caller needs the answer before it returns,
+or a step at a time with the rest of the app let in between. The item table, the game's index,
+the list of free looks and the check of a built table all work this way. Measured on the installed
+game with 60 picks and six arcana bases, the longest stretch is 0.27 s, one arcana's model with no
+base; the cold list of free looks at start holds it for 0.08 s.
+
+*Check:* `node --test test/schema-service.test.ts` (the tests under "building in the background"
+and "the window first, the table behind it"), and `src/steps.ts`.
 
 ### No macOS build, and the Linux one is young
 
@@ -572,13 +645,27 @@ Weighed, not settled. Listed so nobody files them as an oversight.
 ### Applying to SignPath again
 
 The first application was turned down for public visibility rather than for anything in the code.
-The picture has changed since: 43 releases, tens of thousands of installs, a community around the
-catalog, and a comparable tool in the same ecosystem already signed by the same programme. Not
-resubmitted yet.
+The picture has changed since: 57 releases, tens of thousands of installs, a community around the
+catalog, and a comparable tool in the same ecosystem already signed by the same programme. The
+maintainer's answer on 2026-10-11: apply again once the project is visibly more popular, not
+before.
 
 *Check:* download the installer from the latest release and ask Windows who signed it:
 `Get-AuthenticodeSignature .\Dota-2-Mod-Manager-Setup.exe`. It answers `NotSigned` today, and
 the day it stops, this entry is out of date.
+
+### The arcana bases come from a contributor's own repository
+
+Since 2.13.0 the item builder puts on arcanas that J0nathan550 compiled again by hand, downloaded
+from his repository the first time somebody picks one. The app takes only files under `models/`,
+`materials/` and `particles/`, checks each against its git hash, and builds from the game's own
+files when the repository cannot be reached. It reads the repository's `main` branch, though, with
+no signature of ours: whatever he pushes reaches everybody who picks that arcana. Pinning a commit
+in the app would make every fix wait for a release; moving the repository into the organisation
+or signing its manifest would keep fixes immediate and put a second key between a push and the
+users. Not decided yet.
+
+*Check:* `BASES_REPO` and the branch it is read from, in `src/arcana-base-store.ts`.
 
 ---
 
@@ -594,8 +681,8 @@ Each of these has arrived in a review. Each is answered by one command.
 | "The state files in the root are why the repository is 61 MB" | The generated JSON at the root is 1.3 MB of the pack. The preview images are 47.3 MB of 57.2 MB | the command under the open question above |
 | "It is a Windows-only app" | Every release since 2.4.0 also carries a Linux AppImage | `gh release view --json assets` |
 | "`main` is unprotected" | It is guarded by a ruleset, which the branch-protection endpoint does not report | `gh api repos/dota2modmanager/dota2-mod-manager/rulesets` |
-| "There are 25 test files" | More than 40 of them, run on Linux and on Windows on every push | `ls test/*.test.js \| wc -l` then `npm test` |
-| "An open issue asks for tests that already exist" | Issue #4 was closed on 2026-09-08 when that was pointed out, and `#5` on 2026-09-09 when Windows CI landed. `#3`, `#6`, `#7` and `#9` are open and really are open | `gh issue list --state open` |
+| "There are 25 test files" | More than 150 of them, run on Linux and on Windows on every push | `ls test/*.test.* \| wc -l` then `npm test` |
+| "An open issue asks for tests that already exist" | Issue #4 was closed on 2026-09-08 when that was pointed out, and `#5` on 2026-09-09 when Windows CI landed. `#6`, `#7` and `#9` were closed when the work landed; what is open is open | `gh issue list --state open` |
 | "There is no static analysis, only tests" | `eslint` runs before the suite in CI and again in the commit guard, with rules about code that cannot run rather than about style | `npm run lint` |
 
 ---

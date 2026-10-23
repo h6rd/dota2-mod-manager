@@ -9,15 +9,14 @@
  *   tr(CAT_RU[id])                        -> plain lookup for data-driven labels
  */
 'use strict';
-
 // current UI language. Seeded synchronously from localStorage so a returning user sees the
 // right language with no flash; boot() reconciles it against settings.json (the source of truth).
 window.I18N_LANG = (() => {
-  try { return localStorage.getItem('uiLang') === 'ru' ? 'ru' : 'en'; } catch { return 'en'; }
+  try { const lang = localStorage.getItem('uiLang'); return lang === 'ru' || lang === 'zh-CN' ? lang : 'en'; } catch { return 'en'; }
 })();
 
 // locale used for date/number formatting
-window.i18nLocale = () => (window.I18N_LANG === 'en' ? 'en' : 'ru');
+window.i18nLocale = () => window.I18N_LANG;
 
 // English plural forms keyed by the Russian "many" form passed to plural(n, one, few, many)
 window.EN_PLURAL = {
@@ -188,6 +187,7 @@ const EN = {
     'Files overruled: {0} — {1}. The mod that loads earlier supplies them; right-click to change the order.',
   'Косметика': 'Cosmetics',
   'Моды': 'Mods',
+  'Менеджер модов': 'Mod Manager',
   'вид для стандартного предмета': 'a look for a default item',
   'Предметы': 'Items',
   'Стандартный': 'Default',
@@ -196,7 +196,7 @@ const EN = {
   'Надето: {0}': 'Equipped: {0}',
   'Надеть': 'Equip',
   'Надеваю…': 'Equipping…',
-  'Сохранить эффекты': 'Save effects',
+  'Сохранить эффекты': 'Save effects', 'Есть баги': 'Has bugs', 'Сломана': 'Broken', 'Не проверено': 'Not checked', 'Сохранить стиль': 'Save style', 'Стиль': 'Style', 'стиль {0}': 'style {0}',
   'Вернуть стандартный': 'Back to default',
   'Можно выбрать несколько. Иней и Снег держатся не на всех моделях.':
     'You can pick several. Frostbloom and Snow do not hold on every model.',
@@ -233,12 +233,13 @@ const EN = {
   'Набор надевается без эффектов. Чтобы добавить эффект, открой деталь.':
     'A set goes on without effects. Open a piece to add one.',
   'Эффект добавляется к предмету: сначала выбери его выше.': 'An effect goes on an item: choose one above first.',
-  'Конструктор предметов': 'Item builder',
+  'Конструктор предметов': 'Item builder', 'Арканы в конструкторе': 'Arcanas in the item builder',
   'конструктор предметов': 'item builder',
   'Без эффектов': 'No effects',
   'Выбрать всю косметику': 'Select every look',
   'Вернуть все слоты к тому, что даёт игра': 'Put every slot back to what the game gives',
   'Косметика выключена — слоты снова как в игре': 'Cosmetics off — the slots are the game’s own again',
+
   'Вид подставляется в схему предметов игры — стандартный предмет просто рисуется как выбранный. Файлы модов это не трогает, и видно только тебе.':
     'A look is spliced into the game’s item schema — it touches no mod files, and only you can see it.',
   'Стандартный предмет героя сохранит свои id, name и prefab=default_item. Остальная часть блока берётся у выбранного предмета, а выбранный эффект добавляется в visuals.':
@@ -256,7 +257,6 @@ const EN = {
   'Развернуть': 'Maximize', 'Закрыть': 'Close', 'Поиск Dota 2…': 'Looking for Dota 2…',
   'Папка модов': 'Mods folder', 'Играть': 'Play',
   'Сменить цвета': 'Change the colours',
-
   // ---------- install list ----------
   'Список установки': 'Install list',
   'Добавить в список': 'Add to the install list',
@@ -302,7 +302,7 @@ const EN = {
   'Загрузка каталога…': 'Loading catalog…',
   'Не удалось загрузить каталог: {0}': 'Could not load the catalog: {0}',
   'Повторить': 'Retry',
-  'Недавно добавленные': 'Recently added',
+  'Недавно добавленные': 'Recently added', 'Показать все {0}': 'Show all {0}',
   'Категории': 'Categories',
   'Поиск:': 'Search:',
   'Ничего не найдено': 'Nothing found',
@@ -473,8 +473,7 @@ const EN = {
   // ---------- presets ----------
   '{0} не установлено': '{0} not installed',
   'не установлен': 'not installed',
-  'Пресет хранит моды. Виды для стандартных предметов в него не входят: они живут своей жизнью в «Моих модах» и не выключаются вместе с пресетом.':
-    'A preset holds mods. Looks for default items are not part of one: they live in My mods on their own and are not switched off along with a preset.',
+  'Пресет хранит моды и виды из игры. Моды, которых в нём нет, выключаются, а вид надевается в свой слот: слоты, которых пресет не называет, остаются как есть.': 'A preset holds mods and looks from the game. Mods it does not name are switched off; a look goes on in its slot, and the slots the preset does not name stay as they are.',
   'Пресет запоминает, какие моды включены. Применение пресета включает его моды и выключает остальные. Готовым пресетом можно поделиться файлом — перетащи полученный .d2mm сюда.':
     'A preset remembers which mods are on. Applying a preset enables its mods and disables the rest. A finished preset can be shared as a file — drop a .d2mm you received here.',
 
@@ -502,6 +501,7 @@ const EN = {
   'Пресет «{0}» добавлен — нажми «Установить»': 'Preset «{0}» added — press «Install»',
   'Установлено и применено: {0} {1}': 'Installed and applied: {0} {1}',
   'виды из игры: {0}': 'looks from the game: {0}',
+  'Виды из игры в этом пресете заработают, когда выключишь безопасный режим': 'The looks from the game in this preset take effect once you turn safe mode off',
   'Не удалось прочитать файл пресета': 'Could not read the preset file',
   'Сюда можно бросить моды (.vpk, .zip, папку) или пресет .d2mm':
     'You can drop mods here (.vpk, .zip, a folder) or a .d2mm preset',
@@ -719,12 +719,15 @@ const EN = {
   'Найти автоматически': 'Auto-detect',
   'Указать вручную': 'Set manually',
   'Язык': 'Language',
+  'Сортировка': 'Sort',
+  'Герой': 'Hero',
+  'Слот': 'Slot',
   'Масштаб': 'Scale',
   'Мельче': 'Smaller',
   'Крупнее': 'Bigger',
   'Сбросить': 'Reset',
   'Перенести сюда': 'Move here',
-  'Кэш загрузок': 'Download cache',
+  'Кэш загрузок': 'Download cache', 'Прокси загрузок': 'Download proxy', 'Проверить': 'Test', 'Сохранить': 'Save', 'Прокси сохранён': 'Proxy saved', 'Прокси отключён': 'Proxy disabled', 'Прокси работает': 'Proxy works', 'Прямое подключение включено': 'Direct connection enabled', 'Не удалось сохранить прокси': 'Could not save the proxy', 'Прокси используется только для загрузок приложения. Оставь поле пустым для прямого подключения. Не указывай логин и пароль.': 'The proxy is used only for app downloads. Leave the field empty for a direct connection. Do not enter a username or password.', 'Возможно, нужно настроить прокси или включить VPN': 'You may need to configure a proxy or enable a VPN.',
   'Размер': 'Size',
   'Обновлён': 'Updated',
   'Обновить сейчас': 'Refresh now',
@@ -738,6 +741,7 @@ const EN = {
     'Mods moved into dota_{0}, the folder your audio language mounts. Restart the game.',
   'Скопировано в буфер': 'Copied to clipboard',
   'Кэш очищен': 'Cache cleared',
+  'Язык переключён на 简体中文': 'Language switched to Simplified Chinese',
   'Язык переключён на English': 'Language switched to English',
   'Язык переключён на Русский': 'Language switched to Russian',
 
@@ -766,6 +770,8 @@ const EN = {
   'Обновляю каталог…': 'Refreshing the catalog…',
   'Каталог обновлён': 'Catalog updated',
   'Каталог не обновился, показан последний загруженный': 'Could not update the catalog, showing the last one downloaded',
+  'Эта ссылка не ведёт на мод': 'This link does not lead to a mod',
+  'Мода «{0}» нет в каталоге': 'The catalog has no mod called «{0}»',
   'Нет соединения с интернетом': 'No internet connection',
   'Каталог сейчас недоступен': 'The catalog is unavailable right now',
   'Моды, которые уже стоят, работают. Каталог появится, как только связь вернётся.': 'The mods you already have keep working. The catalog will be here as soon as you are back online.',
@@ -802,6 +808,7 @@ const EN = {
   'Отчёт сохранён': 'Report saved',
 };
 
+const translation = (key) => window.I18N_LANG === 'zh-CN' ? (window.ZH_CN?.[key] ?? EN[key]) : EN[key];
 function canonKey(strings) {
   let k = strings[0];
   for (let i = 1; i < strings.length; i++) k += '{' + (i - 1) + '}' + strings[i];
@@ -812,22 +819,20 @@ function fillValues(tmpl, values) {
   return tmpl.replace(/\{(\d+)\}/g, (_, i) => (values[+i] != null ? String(values[+i]) : ''));
 }
 
-// tagged template (L`...`) or plain call L('...')
 function L(strings, ...values) {
   if (typeof strings === 'string') return tr(strings);
   const key = canonKey(strings);
-  if (window.I18N_LANG === 'en' && EN[key] != null) return fillValues(EN[key], values);
-  if (window.I18N_LANG === 'en' && !EN[key]) console.warn('[i18n miss]', JSON.stringify(key));
+  const translated = translation(key);
+  if (window.I18N_LANG !== 'ru' && translated != null) return fillValues(translated, values);
+  if (window.I18N_LANG !== 'ru') console.warn('[i18n miss]', JSON.stringify(key));
   let out = strings[0];
   for (let i = 0; i < values.length; i++) out += String(values[i]) + strings[i + 1];
   return out;
 }
 
-// plain-string lookup for data-driven labels
 function tr(s) {
   if (s == null) return s;
-  if (window.I18N_LANG === 'en' && EN[s] != null) return EN[s];
-  return s;
+  return window.I18N_LANG !== 'ru' ? (translation(s) ?? s) : s;
 }
 
 window.L = L;

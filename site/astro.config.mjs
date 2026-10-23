@@ -17,11 +17,17 @@ import {
 import { ogPath } from './src/lib/og.ts';
 import { heroCopy } from './src/i18n/heroes.ts';
 import { categoryText } from './src/i18n/categories.ts';
+import { createHash } from 'node:crypto';
+import { catalog } from './src/lib/catalog.ts';
+import { modText } from './src/lib/mods.ts';
+import { LANG_OFFER } from './src/lib/inline-scripts.ts';
 import heroData from './src/data/heroes.json' with { type: 'json' };
 import categoryData from './src/data/categories.json' with { type: 'json' };
 
 const heroBySlug = new Map(heroData.heroes.map((h) => [h.slug, h]));
 const categoryById = new Map(categoryData.categories.map((c) => [c.id, c]));
+const modByKey = new Map(catalog.map((m) => [m.key, m]));
+const sha256 = (text) => `sha256-${createHash('sha256').update(text).digest('base64')}`;
 
 /**
  * dota2modmanager.com
@@ -60,6 +66,31 @@ function cardText(lang, path) {
 export default defineConfig({
   site: SITE,
   trailingSlash: 'always',
+  /* A content security policy on every page, with the hashes of the page's own scripts and styles
+     worked out by Astro at build time, so nothing but those runs. The rest is what the pages really
+     load: their own files, the catalog's pictures from wherever a preview lives (the shared-build
+     page shows any catalog mod), and two addresses the shared-build page and nothing else fetches.
+     frame-ancestors cannot go in a <meta>; it is in public/_headers with the other headers. */
+  security: {
+    csp: {
+      directives: [
+        "default-src 'self'",
+        "img-src 'self' data: https:",
+        "media-src 'self' https:",
+        "connect-src 'self' https://raw.githubusercontent.com https://api.github.com",
+        "font-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ],
+      // the scripts written into the page itself, which Astro does not hash (src/lib/inline-scripts.ts)
+      scriptDirective: { hashes: [sha256(LANG_OFFER)] },
+    },
+  },
+  /* No colouring of code in markdown. Shiki colours a block with style="" on every element, and the
+     policy above refuses those, so a highlighted block came out as bare text. The one block the
+     markdown pages carry is a shell command; lib/legal.ts gives it the docs' code style instead. */
+  markdown: { syntaxHighlight: false },
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'ru'],
@@ -99,6 +130,19 @@ export default defineConfig({
                 title: m.name,
                 caption: heroCopy[lang].alt.replace('{mod}', m.name).replace('{hero}', hero.name),
               }));
+          }
+          return item;
+        }
+
+        // A mod's page: the mod in each of its styles, captioned with the page's own title.
+        const modMatch = /^\/mods\/([^/]+)\/$/.exec(path);
+        if (modMatch) {
+          const mod = modByKey.get(modMatch[1]);
+          if (mod) {
+            const caption = modText(lang, mod).title;
+            item.img = mod.looks
+              .filter((l) => l.img)
+              .map((l) => ({ url: abs(l.img), title: l.label ? `${mod.name} (${l.label})` : mod.name, caption }));
           }
           return item;
         }

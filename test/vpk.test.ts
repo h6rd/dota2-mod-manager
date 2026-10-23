@@ -312,3 +312,40 @@ test('two spellings of one hero are one hero, under the name the game uses, whic
     assert.equal(heroes[0].models, 2);
   }
 });
+
+test('the shared index is one open for a file read in a row, and a new open once the file changed', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2mm-sharedix-'));
+  try {
+    const file = path.join(dir, 'pak01_dir.vpk');
+    fs.writeFileSync(file, vpk.buildVpk([entry('models/a.vmdl_c', 'first')]));
+    const a = vpk.sharedVpkIndex(file);
+    assert.equal(vpk.sharedVpkIndex(file), a, 'the same file: the same index');
+    assert.equal(a.read('models/a.vmdl_c')?.toString(), 'first');
+    fs.writeFileSync(file, vpk.buildVpk([entry('models/a.vmdl_c', 'second, longer')]));
+    const b = vpk.sharedVpkIndex(file);
+    assert.notEqual(b, a, 'a changed file is opened again');
+    assert.equal(b.read('models/a.vmdl_c')?.toString(), 'second, longer');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an index opened a pause at a time is the index opened at once', async () => {
+  const { drain, PAUSE } = await import('../src/steps.ts');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2mm-ixsteps-'));
+  try {
+    const file = path.join(dir, 'pak01_dir.vpk');
+    fs.writeFileSync(file, vpk.buildVpk(Array.from({ length: 50 }, (_, i) => entry(`models/m${i}.vmdl_c`, `model ${i}`))));
+    let pauses = 0;
+    const steps = vpk.openVpkIndexSteps(file, 10);
+    let r = steps.next();
+    for (; !r.done; r = steps.next()) if (r.value === PAUSE) pauses++;
+    assert.equal(pauses, 5, 'one every ten entries');
+    assert.equal(r.value.size, 50);
+    assert.equal(r.value.read('models/m42.vmdl_c')?.toString(), 'model 42');
+    assert.deepEqual([...r.value.paths()], [...vpk.openVpkIndex(file).paths()]);
+    assert.equal(drain(vpk.sharedVpkIndexSteps(file)).read('models/m7.vmdl_c')?.toString(), 'model 7');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

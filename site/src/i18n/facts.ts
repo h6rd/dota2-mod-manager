@@ -156,6 +156,12 @@ export const facts: Record<'en' | 'ru', FactsPage> = {
         ],
       },
 
+      { k: 'h2', t: 'Copies of it', id: 'copies' },
+      {
+        k: 'p',
+        t: 'There is one Dota 2 Mod Manager, and it is free with every feature in it: no Pro, Premium or VIP edition, no subscription, no keys. Renamed copies of it are handed out and sold as other people\'s launchers, with no source code and no word about what they are built on. A launcher that charges for this, hides its source or wants a login is not this project. The official addresses are dota2modmanager.com and github.com/dota2modmanager/dota2-mod-manager. <a href="~/docs/copies/">How to tell the real one</a>.',
+      },
+
       { k: 'h2', t: 'What it writes into the game folder', id: 'writes' },
       {
         k: 'p',
@@ -315,7 +321,7 @@ export const facts: Record<'en' | 'ru', FactsPage> = {
           '<b>Подхватывает то, что уже стоит.</b> Моды, поставленные руками или другой программой, узнаются, а не затираются.',
           '<b>Без аккаунта, без телеметрии, без рекламы.</b> Вход через Discord нужен только чтобы подписать своим ником сборку, которой делишься.',
           '<b>Не просит логин Steam.</b> Установке файла в папку твой аккаунт не нужен. Всё, что его просит, занимается чем-то другим.',
-          '<b>Работает рядом с Minify.</b> Это не альтернатива ему: Minify компилирует моды, а мы ставим их из каталога, и приложение сделано так, чтобы делить игру с ним - не занимает слоты паков, в которые он пишет, его файлы не трогает и говорит, чью папку читает игра. <a href="~/ru/docs/compare/">Подробности</a>.',
+          '<b>Работает рядом с Minify.</b> Это не альтернатива ему: Minify компилирует моды, а мы ставим их из каталога, и приложение сделано так, чтобы делить игру с ним - не занимает слоты паков, в которые он пишет, его файлы не трогает и говорит, чью папку читает игра. <a href="~/docs/compare/">Подробности</a>.',
         ],
       },
 
@@ -329,6 +335,12 @@ export const facts: Record<'en' | 'ru', FactsPage> = {
           'Не внедряет код в игру, не трогает её память и ничего не делает за тебя в матче.',
           'Не связана с Valve. Valve её не одобряла и к ней не причастна.',
         ],
+      },
+
+      { k: 'h2', t: 'Копии программы', id: 'copies' },
+      {
+        k: 'p',
+        t: 'Dota 2 Mod Manager один, бесплатный, и в нём есть всё: ни Pro, ни Premium, ни VIP, ни подписки, ни ключей. Переименованные копии раздают и продают как чужие лаунчеры, без исходного кода и без слова о том, на чём они сделаны. Лаунчер, который берёт за это деньги, прячет код или требует войти, к проекту не относится. Официальные адреса - dota2modmanager.com и github.com/dota2modmanager/dota2-mod-manager. <a href="~/docs/copies/">Как отличить настоящий</a>.',
       },
 
       { k: 'h2', t: 'Что пишется в папку игры', id: 'writes' },

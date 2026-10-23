@@ -33,7 +33,7 @@ async function renderSettings(fresh = false): Promise<void> {
   const cacheSize = await window.api.misc.cacheSize();
   const version = await window.api.update.version();
   let vrf = null;
-  try { vrf = (await window.api.tools.state()).tools.find((x: { name: string }) => x.name === 'vrf') || null; } catch { /* older build */ }
+  try { vrf = (await window.api.tools.state()).tools.find((x) => x.name === 'vrf') || null; } catch { /* older build */ }
   let beta = { eligible: false, on: false };
   try { beta = await window.api.beta.state(); } catch { /* older build */ }
   if (fresh) key++;
@@ -47,7 +47,9 @@ async function renderSettings(fresh = false): Promise<void> {
     dotaPath: s.dotaGamePath || '',
     dotaValid: Boolean(s.dotaPathValid),
     cache: `${fmtMB(cacheSize)} MB`,
-    vrf: vrf ? { ready: Boolean(vrf.ready), size: `${fmtMB(vrf.ready ? vrf.installedBytes : vrf.downloadBytes)} MB` } : null,
+    proxy: s.downloadProxy || '',
+    // no row on a machine with no build of it: the button could only fail
+    vrf: vrf && vrf.available !== false ? { ready: Boolean(vrf.ready), size: `${fmtMB(vrf.ready ? vrf.installedBytes : vrf.downloadBytes)} MB` } : null,
     catalogUpdated: fetchedAt ? new Date(fetchedAt).toLocaleString(window.i18nLocale()) : '—',
     adult: adultShown(),
     adultHint: adultHint(),
@@ -82,7 +84,7 @@ const actions: SettingsActions = {
   // the app language, and only the app: what somebody reads Dota in was decided when they installed it
   language: async (lang) => {
     await applyLanguage(lang);
-    toast(lang === 'ru' ? L`Язык переключён на Русский` : L`Язык переключён на English`);
+    toast(lang === 'ru' ? L`Язык переключён на Русский` : lang === 'zh-CN' ? L`Язык переключён на 简体中文` : L`Язык переключён на English`);
     renderSettings();
   },
   scale: (pct, live) => { if (live) paintScale(clampScale(pct)); else setEverything(pct); },
@@ -116,6 +118,22 @@ const actions: SettingsActions = {
     toast(L`Кэш очищен`);
     renderSettings();
   },
+  proxySave: async (value) => {
+    try {
+      const next = await window.api.settings.set('downloadProxy', value.trim());
+      state.settings = next;
+      toast(value.trim() ? L`Прокси сохранён` : L`Прокси отключён`);
+      renderSettings();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : L`Не удалось сохранить прокси`, 'error');
+    }
+  },
+  proxyTest: async (value) => {
+    const result = await window.api.settings.testProxy(value.trim());
+    if (result?.error) toast(result.error, 'error');
+    else toast(value.trim() ? L`Прокси работает` : L`Прямое подключение включено`);
+  },
+  proxyClear: async () => actions.proxySave(''),
   tool: async (install) => {
     if (install) {
       toast(L`Скачиваю инструмент — это разово`, 'ok', 5000);

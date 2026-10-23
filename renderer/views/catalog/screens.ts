@@ -4,10 +4,12 @@
 import { arcanaLead } from './arcana.ts';
 import { RAW_BASE, COSMETIC_PREFIX, cosmeticMeta } from '../../core/constants.ts';
 import { state } from '../../core/store.ts';
-import { pickedIn, refreshCosmeticSlots } from '../../core/installed.ts';
+import { pickedIn, firstCosmeticSlots } from '../../core/installed.ts';
 import { catName, catIcon } from '../../core/categories.ts';
 import { isAdult, adultShown } from '../../core/adult.ts';
 import { plural } from '../../ui/format.ts';
+import { heroName, catalogMatchesSearch } from '../../ui/hero-name.ts';
+import { cosmeticNameMatches } from '../../ui/cosmetic-name.ts';
 import { paint } from '../../ui/transitions.ts';
 import { heroOf, heroMatches, heroGridWanted, heroTiles, heroLayout } from '../hero-grid.ts';
 import { renderItemCosmeticHub } from '../item-hub.ts';
@@ -15,6 +17,7 @@ import { canBeInstalled } from '../../catalog/mods.ts';
 import { collectTags, collectGroups } from '../../catalog/tags.ts';
 import { narrowed as filtersNarrowed } from '../../catalog/filters.ts';
 import { favKey } from '../../catalog/favorites.ts';
+import { recentStrip } from '../../catalog/recent.ts';
 import { isInstalled } from '../../catalog/looks.ts';
 import { catalogConstants, catalogData } from '../../catalog/data.ts';
 import { showScreen } from '../../catalog/screen/root.tsx';
@@ -59,20 +62,40 @@ export async function renderFavorites(actions: ScreenActions): Promise<void> {
   }, actions));
 }
 
-export async function renderHome(actions: ScreenActions): Promise<void> {
-  const recent = (catalogData()?.mods?.recentlyAddedMods || [])
+/** The catalog's own list of what arrived lately, newest first, as mods the app knows. */
+function recentMods(): Mod[] {
+  return (catalogData()?.mods?.recentlyAddedMods || [])
     .map((r) => {
       const hit = state.modIndex.get(r.name.toLowerCase());
       return hit ? { ...hit.mod, _cat: hit.categoryId } as Mod : null;
     })
-    .filter((m): m is Mod => Boolean(m && (adultShown() || !isAdult(m))))
-    .slice(0, 12);
+    .filter((m): m is Mod => Boolean(m && (adultShown() || !isAdult(m))));
+}
+
+export async function renderHome(actions: ScreenActions): Promise<void> {
+  const { strip: recent, total: recentTotal } = recentStrip(recentMods());
   const tiles = visibleCategories().map((c) => ({
     id: c.id,
     name: catName(c.id),
     preview: c.preview ? `${RAW_BASE}/assets/previews/categories/${encodeURIComponent(c.preview)}` : null,
   }));
-  await paint(() => showScreen({ kind: 'home', recent, tiles }, actions));
+  await paint(() => showScreen({ kind: 'home', recent, recentTotal, tiles }, actions));
+}
+
+/* Everything the catalog lists as recently added, as a grid with the toolbar: the strip on the
+ * front page stops at twelve, and the list runs to a couple of hundred (issue #292). */
+export async function renderRecent(actions: ScreenActions): Promise<void> {
+  const all = recentMods();
+  const mods = applyFilters(all);
+  await paint(() => showScreen({
+    kind: 'list',
+    key: 'recent',
+    title: L`Недавно добавленные`,
+    back: 'home',
+    toolbar: toolbarModel(mods.length, { installable: all.some(canBeInstalled) }),
+    mods: { heading: false, mods, withCat: true, emptyText: NOTHING() },
+    cosmetics: null,
+  }, actions));
 }
 
 // how many looks a search shows before it just says how many more there are: a query like
@@ -84,7 +107,7 @@ export async function renderSearchResults(actions: ScreenActions): Promise<void>
   let mods: Mod[] = [];
   for (const c of visibleCategories()) {
     for (const m of categoryMods(c.id)) {
-      if (m.name && m.name.toLowerCase().includes(q)) mods.push({ ...m, _cat: c.id });
+      if (m.name && catalogMatchesSearch(m.name, q)) mods.push({ ...m, _cat: c.id });
     }
   }
   // the search reaches the free cosmetics too, in their own section below the mods
@@ -149,8 +172,8 @@ export async function renderCategory(categoryId: string, actions: ScreenActions)
   await paint(() => showScreen({
     kind: 'list',
     key: `cat:${categoryId}`,
-    title: (byHero && f.hero) || catName(categoryId),
-    back: byHero && Boolean(f.hero),
+    title: (byHero && heroName(f.hero)) || catName(categoryId),
+    back: byHero && f.hero ? 'heroes' : undefined,
     toolbar,
     lead: lead && (!f.installedOnly || lead.installed) ? lead : null,
     mods: { heading: false, mods, grouped, emptyText: NOTHING() },
@@ -164,7 +187,7 @@ export async function renderCosmeticCategory(slot: string, actions: ScreenAction
   const waiting = (note: string) => paint(() => showScreen(
     { kind: 'list', key: `cos:${slot}:note`, title: tr(meta.label), toolbar: null, note, mods: null, cosmetics: null }, actions));
   await waiting(L`Читаем схему игры…`);
-  if (!state.cosmeticSlots) await refreshCosmeticSlots();
+  await firstCosmeticSlots();
   if (state.activeCategory !== COSMETIC_PREFIX + slot) return; // moved on while reading
 
   const data = (state.cosmeticSlots || []).find((s) => s.slot === slot);
@@ -176,7 +199,7 @@ export async function renderCosmeticCategory(slot: string, actions: ScreenAction
   const f = view.filters;
   const q = view.cosSearch.trim().toLowerCase();
   let list: Look[] = data.options.map((o) => ({ slot, o }));
-  if (q) list = list.filter(({ o }) => o.name.toLowerCase().includes(q));
+  if (q) list = list.filter(({ o }) => cosmeticNameMatches(o.name, q));
   list = filterCosmetics(list);
   // same rule as the mod grid: a number only once the list in front of you is a subset
   const narrow = Boolean(view.cosSearch.trim() || f.installedOnly || f.favOnly);
