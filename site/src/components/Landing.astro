@@ -33,7 +33,7 @@ interface Props { lang: Lang }
 const { lang } = Astro.props;
 /* The last hero only runs once an app that can take what it gives is out (Hunt.astro). */
 const latest = await latestRelease();
-const lastRuns = !!latest && compareVersions(latest, '2.16.0') >= 0;
+const lastRuns = !!latest && compareVersions(latest, '2.17.0') >= 0;
 const c = landing[lang];
 
 /** Copy links are written as "~/docs/safe/" and get their language prefix here. */
@@ -291,6 +291,23 @@ const heroName = (name: string) => (lang === 'ru' ? ruName(name)?.nom ?? name : 
       <article class="tile span4 reveal">
         <h3>{c.cards[6][0]}</h3>
         <p set:html={link(c.cards[6][1])} />
+      </article>
+
+      {/* The whole row: making a mod is a different job from installing one, and the tile shows it
+          as the conversation it is. The request is one the skill's SETUP.md offers as an example. */}
+      <article class="tile full ai reveal">
+        <div>
+          <h3>{c.cards[7][0]}</h3>
+          <p set:html={link(c.cards[7][1])} />
+        </div>
+        <div class="art ai-chat" aria-hidden="true">
+          <div class="ai-msg you">{lang === 'ru' ? 'Сделай спеллы Некрофоса кроваво-красными' : 'Make Necrophos\' spells blood red'}</div>
+          <div class="ai-msg bot">
+            <span><Icon name="check" size={16} />{lang === 'ru' ? 'Эффекты перекрашены и скомпилированы' : 'Effects recoloured and compiled'}</span>
+            <span><Icon name="check" size={16} />{lang === 'ru' ? 'Доктор: проблем нет' : 'Doctor: no problems found'}</span>
+            <code>necrolyte_blood_red.vpk</code>
+          </div>
+        </div>
       </article>
     </div>
   </div>

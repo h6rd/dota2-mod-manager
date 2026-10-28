@@ -24,6 +24,8 @@ const EN = {
   'В этой папке не найдена Dota 2 (нет подпапки dota)': 'No Dota 2 here (there is no "dota" subfolder)',
   'Уже установлено': 'Already installed',
   'Мод не найден': 'Mod not found',
+  // a copy of the pumpkin prize this install did not earn (src/scream-guard.ts)
+  'Жульничество наказуемо гадостью': 'Cheating is punished with something nasty',
   // a tool of the toolchain with no build for this machine (src/toolchain.ts)
   'Для этой системы ({0}) нет сборки {1}': 'There is no build of {1} for this system ({0})',
   'Не указана папка игры': 'No game folder is set',
@@ -225,6 +227,16 @@ const EN = {
   // kind names (title-case)
   'Варды': 'Wards', 'Курьер': 'Courier', 'Интерфейс меню': 'Menu UI', 'Звуки': 'Sounds', 'Ландшафт': 'Terrain',
   'Сборка · {0} героев': 'Bundle · {0} heroes',
+  // resourcecompiler.exe and the Wine it runs under (src/resource-compiler.ts, src/ipc-compiler.ts)
+  'resourcecompiler.exe не найден. Он входит в Dota 2 Workshop Tools: поставь их в Steam или укажи файл вручную': 'resourcecompiler.exe was not found. It comes with the Dota 2 Workshop Tools: install them in Steam, or pick the file by hand',
+  'Для resourcecompiler.exe нужен Wine: поставь его из пакетов своей системы или Proton в Steam': 'resourcecompiler.exe needs Wine: install it from your system\'s packages, or install Proton in Steam',
+  'resourcecompiler.exe не собрал {0}: {1}': 'resourcecompiler.exe could not compile {0}: {1}',
+  'Выбери resourcecompiler.exe в папке game/bin/win64 игры с Workshop Tools': 'Pick resourcecompiler.exe in game/bin/win64 of a game with the Workshop Tools',
+  'Это не resourcecompiler.exe из папки game/bin/win64 установленной Dota 2': 'This is not resourcecompiler.exe from game/bin/win64 of an installed Dota 2',
+  'Проверка компилятора': 'Checking the compiler',
+  'подготовка Wine': 'setting up Wine',
+  'сборка пустой модели': 'compiling an empty model',
+  'Копия Workshop Tools': 'Copy of the Workshop Tools',
 } satisfies Record<string, string>;
 
 /** The table as a lookup: any Russian string, its English or nothing. */

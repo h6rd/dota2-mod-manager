@@ -8,7 +8,10 @@ import { MotionConfig } from 'motion/react';
 import { pane } from '../core/router.ts';
 import { Reveal } from '../motion/Reveal.tsx';
 import { Swap } from '../motion/Swap.tsx';
+import { Dropdown } from '../ui/Dropdown.tsx';
 import { ProxyControl } from './ProxyControl.ts';
+import { CompilerBlock, type CompilerActions } from './CompilerBlock.tsx';
+import type { CompilerState } from '../api/content.ts';
 
 export interface SettingsModel {
   key: number;
@@ -22,13 +25,15 @@ export interface SettingsModel {
   proxy: string;
   /** the Source 2 toolchain: a size and a button, never downloaded on its own */
   vrf: { ready: boolean; size: string } | null;
+  /** resourcecompiler.exe, and the Wine it runs under on Linux */
+  compiler: CompilerState | null;
   catalogUpdated: string;
   adult: boolean;
   adultHint: string;
   version: string;
 }
 
-export interface SettingsActions {
+export interface SettingsActions extends CompilerActions {
   language: (lang: string) => void;
   scale: (pct: number, live: boolean) => void;
   scaleStep: (delta: number | null) => void;
@@ -99,14 +104,18 @@ function SettingsScreen({ m, actions }: { m: SettingsModel; actions: SettingsAct
       <Block title={L`Интерфейс`}>
         <div className="settings-row">
           <span className="settings-label">{L`Язык`}</span>
-          <div className="select-wrap">
-            <span className="ms" aria-hidden="true">translate</span>
-            <select className="input" id="uiLangSelect" aria-label={L`Язык`} value={m.uiLang} onChange={(e) => actions.language(e.target.value)}>
-              <option value="en">English</option>
-              <option value="ru">Русский</option>
-              <option value="zh-CN">简体中文</option>
-            </select>
-          </div>
+          <Dropdown
+            id="uiLangSelect"
+            icon="translate"
+            label={L`Язык`}
+            value={m.uiLang}
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'ru', label: 'Русский' },
+              { value: 'zh-CN', label: '简体中文' },
+            ]}
+            onPick={(lang) => actions.language(lang)}
+          />
         </div>
         <div className="settings-row spaced">
           <span className="settings-label">{L`Масштаб`}</span>
@@ -172,6 +181,8 @@ function SettingsScreen({ m, actions }: { m: SettingsModel; actions: SettingsAct
           <div className="settings-hint">{L`Картинки предметов приложение берёт из самой игры: точные, без интернета и без ожидания. А моду, который приехал без превью, находит картинку в его же файлах. Без инструмента предметы грузятся из вики (медленнее и есть не для всего), а моды остаются с заглушкой. Удалить можно в любой момент.`}</div>
         </Block>
       )}
+
+      {m.compiler && <CompilerBlock i={4} c={m.compiler} actions={actions} />}
 
       <Block i={4} title={L`Каталог`}>
         <div className="settings-row">

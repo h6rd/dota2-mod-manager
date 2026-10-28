@@ -86,6 +86,7 @@ export const WINDOW_SETTINGS: Record<string, Check> = {
   langPromptSeen: bool,
   panels: either(oneOf(null), json(64 * 1024)),
   pumpkin: bool,
+  pumpkinLit: bool,
   secret: bool,
   showAdult: bool,
   theme: str(40, 1),
@@ -160,6 +161,8 @@ export const CHANNEL_ARGS: Record<string, Check[]> = {
   'cosmetics:pickSet': [either(str(100, 1), num(0, 1e9))],
   'preview:video': [str(500, 1)], 'preview:frame': [str(500, 1), bytes(32 * MB)],
   'tools:state': [], 'tools:install': [str(100, 1)], 'tools:remove': [str(100, 1)],
+  // resourcecompiler.exe (src/ipc-compiler.ts): its path comes from a dialog, never from here
+  'compiler:state': [], 'compiler:browse': [], 'compiler:forget': [], 'compiler:prepare': [], 'compiler:check': [], 'compiler:keep': [], 'compiler:removeKept': [],
   'arcana:state': [], 'arcana:install': [list(num(0, 255), 3), oneOf('mod', 'recolor')],
   // the small errands (src/ipc-misc.ts)
   'misc:openLangFolder': [], 'misc:openToolsFolder': [optional(str(260, 1))],
@@ -168,6 +171,8 @@ export const CHANNEL_ARGS: Record<string, Check[]> = {
     try { return /^https?:$/.test(new URL(v).protocol) ? null : fail('an http or https address'); } catch { return fail('an address'); }
   })],
   'misc:cacheSize': [], 'misc:clearCache': [], 'misc:runTool': [str(260, 1)],
+  // the pumpkin's key (src/ipc-pumpkin.ts)
+  'pumpkin:redeem': [str(80)], 'pumpkin:prizeAgain': [], 'pumpkin:hasPrize': [],
   // diagnostics (src/ipc-diagnostics.ts)
   // the handler keeps the first 2000 characters: a long error is cut there, not refused here
   'diag:export': [], 'diag:rendererError': [str(4 * MB)],

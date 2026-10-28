@@ -34,8 +34,19 @@ export interface StoredSettings {
   gameStamp?: string | null;
   /** the pumpkin in the title bar has come out (renderer/ui/pumpkin.ts) */
   pumpkin: boolean;
-  /** the ninth theme is open (renderer/ui/secret-lock.ts) */
+  /** the ninth theme is open (renderer/ui/pumpkin.ts) */
   secret: boolean;
+  /** the pumpkin has been fed a spider and is lit, waiting for a key (renderer/ui/pumpkin.ts) */
+  pumpkinLit: boolean;
+  /** a key was spent: the bloody night is open, and the key that did it (src/pumpkin.ts) */
+  blood?: boolean;
+  bloodKey?: string | null;
+  /** this install's name for the pumpkin's worker, random, made when first needed (src/pumpkin.ts) */
+  pumpkinInstall?: string | null;
+  /** the round of the night this install was last set back to the start of (src/pumpkin.ts NIGHT_ROUND) */
+  nightRound?: number;
+  /** the resourcecompiler.exe picked in Settings, over the game's own (src/resource-compiler.ts) */
+  resourceCompilerPath?: string | null;
 }
 
 const DEFAULTS: StoredSettings = {
@@ -60,6 +71,7 @@ const DEFAULTS: StoredSettings = {
   // the title bar's pumpkin, and the ninth theme it opens (renderer/ui/pumpkin.ts)
   pumpkin: false,
   secret: false,
+  pumpkinLit: false,
   // catalog mods the user starred: "<categoryId>|<mod name>" keys
   favorites: [],
   // sizes and folded state of the title bar, status bar and category rail
@@ -96,6 +108,10 @@ const DEFAULTS: StoredSettings = {
   // why nobody gets a "what's new" popup for a version they just installed by hand.
   lastSeenVersion: null,
   downloadProxy: '',
+  // resourcecompiler.exe from the Workshop Tools, when the game's own is not the one to run: on
+  // Linux there is none, and the one picked is a Windows copy's (src/resource-compiler.ts). Only
+  // its own channel sets it, from a dialog in the main process; settings:set refuses the key
+  resourceCompilerPath: null,
 };
 
 export class Settings {

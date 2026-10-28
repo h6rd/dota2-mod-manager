@@ -78,6 +78,16 @@ contextBridge.exposeInMainWorld('api', {
     install: (name) => ipcRenderer.invoke('tools:install', name),
     remove: (name) => ipcRenderer.invoke('tools:remove', name),
   },
+  // Valve's resourcecompiler.exe: found or picked, and the Wine prefix it runs in on Linux
+  compiler: {
+    state: () => ipcRenderer.invoke('compiler:state'),
+    browse: () => ipcRenderer.invoke('compiler:browse'),
+    forget: () => ipcRenderer.invoke('compiler:forget'),
+    prepare: () => ipcRenderer.invoke('compiler:prepare'),
+    check: () => ipcRenderer.invoke('compiler:check'),
+    keep: () => ipcRenderer.invoke('compiler:keep'),
+    removeKept: () => ipcRenderer.invoke('compiler:removeKept'),
+  },
   // what the app was told from the network: features switched off, dated notices
   config: {
     state: () => ipcRenderer.invoke('config:state'),
@@ -146,6 +156,12 @@ contextBridge.exposeInMainWorld('api', {
     cacheSize: () => ipcRenderer.invoke('misc:cacheSize'),
     clearCache: () => ipcRenderer.invoke('misc:clearCache'),
     runTool: (dirName) => ipcRenderer.invoke('misc:runTool', dirName),
+  },
+  // the pumpkin's key and the mod it opens (src/ipc-pumpkin.ts)
+  pumpkin: {
+    redeem: (key) => ipcRenderer.invoke('pumpkin:redeem', key),
+    prizeAgain: () => ipcRenderer.invoke('pumpkin:prizeAgain'),
+    hasPrize: () => ipcRenderer.invoke('pumpkin:hasPrize'),
   },
   diag: {
     export: () => ipcRenderer.invoke('diag:export'),

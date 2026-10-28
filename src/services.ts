@@ -3,10 +3,12 @@
  * hands the services to the IPC modules.
  *
  * Two things start in the background here and are not waited for: the fingerprint list and the
- * remote config. Both answer from their cached copies until the network does.
+ * remote config. Both answer from their cached copies until the network does. A third waits for
+ * the start to settle: on Linux, a copy of the Workshop Tools the game has (src/workshop-tools.ts).
  */
 import path from 'node:path';
 import { Settings } from './settings.ts';
+import { beginNightAgain } from './pumpkin.ts';
 import { Catalog } from './catalog.ts';
 import { Installer } from './installer.ts';
 import * as importer from './import.ts';
@@ -28,6 +30,8 @@ import { createRemoteConfig } from './remote-config.ts';
 // the download chain, so a mirror named in that signed file joins it
 import { applyMirrors, setDownloadProxy } from './net.ts';
 import { createToolchain } from './toolchain.ts';
+import { createResourceCompiler } from './resource-compiler.ts';
+import { createToolsKeeper } from './workshop-tools.ts';
 import { createGameIcons } from './game-icons.ts';
 import { createModPreviews } from './mod-preview.ts';
 import { createModIdentity } from './mod-id.ts';
@@ -55,6 +59,8 @@ export function createServices({ userData, appVersion, sendProgress, diag, fetch
   const recovered = recoverJournals(FileTx.journalDir, diag);
   if (recovered.undone || recovered.finished) diag(`tx recovery: undid ${recovered.undone}, finished ${recovered.finished}`);
   const settings = new Settings(userData);
+  // a new round of the bloody night starts everybody from the beginning, once (src/pumpkin.ts)
+  if (beginNightAgain({ get: (k) => settings.get(k as never), set: (k, v) => settings.set(k as never, v as never) })) diag('the night starts again');
   setDownloadProxy(settings.get('downloadProxy'));
   setLang(settings.get('uiLang'));
   const catalog = new Catalog(userData);
@@ -117,6 +123,30 @@ export function createServices({ userData, appVersion, sendProgress, diag, fetch
   const gameIcons = createGameIcons({ userDataDir: userData, toolchain, getGamePath: () => settings.get('dotaGamePath'), log: diag });
   // ...and the same toolchain gives a mod that came with no picture one out of itself
   const modPreviews = createModPreviews({ userDataDir: userData, toolchain, langFileOf: (relPath) => installer.langFileOnDisk(relPath), log: diag });
+  /* Valve's compiler from the Workshop Tools, found in the game or picked in Settings, under Wine
+     on Linux (src/resource-compiler.ts). On Linux the tools leave with the Proton build, so a copy
+     is kept once they have been seen (src/workshop-tools.ts); Windows keeps its tools. */
+  const keepLabel = () => t('Копия Workshop Tools');
+  const toolsKeeper = process.platform === 'win32' ? null : createToolsKeeper({
+    dir: path.join(userData, 'workshop-tools'), gamePath: () => settings.get('dotaGamePath'), log: diag,
+    onStep: (done, total) => sendProgress({ type: 'count', label: keepLabel(), done, total }),
+  });
+  const compiler = createResourceCompiler({ userDataDir: userData, gamePath: () => settings.get('dotaGamePath'),
+    chosen: () => settings.get('resourceCompilerPath'), keeper: toolsKeeper || undefined, log: diag });
+  const keepTools: AppContext['keepTools'] = async ({ force = false } = {}) => {
+    if (!toolsKeeper) return false;
+    try {
+      const copied = await toolsKeeper.keep({ force });
+      if (copied) sendProgress({ type: 'done', label: keepLabel() });
+      return copied;
+    } catch (err) {
+      diag(`workshop tools: no copy kept: ${errorText(err)}`);
+      sendProgress({ type: 'error', label: keepLabel(), message: errorText(err) });
+      throw err;
+    }
+  };
+  // after the start has settled: 700 MB read while the window draws its first screens is felt
+  setTimeout(() => { keepTools().catch(() => {}); }, 15000).unref();
 
   // after any deploy, if the master switch is off, sweep freshly written files off too
   const afterDeployMaster = () => {
@@ -152,7 +182,7 @@ export function createServices({ userData, appVersion, sendProgress, diag, fetch
 
   return {
     settings, catalog, library, fingerprints, installer, presenceStatus, schemaService, updateImpact, cursors, adopt,
-    remoteConfig, icons, toolchain, gameIcons, modPreviews, arcana,
+    remoteConfig, icons, toolchain, compiler, toolsKeeper, keepTools, gameIcons, modPreviews, arcana,
     afterDeployMaster, deployAndApply, presets, importVpkPaths, importVpkBuffers,
   };
 }
