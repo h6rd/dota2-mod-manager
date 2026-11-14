@@ -196,6 +196,16 @@ test('the download counter token is asked with an empty batch, which counts noth
   assert.equal((await CHECKS.STATS_APP_TOKEN({}, { http: counter.http })).state, 'missing');
 });
 
+test('the upload worker token is asked at the status route, which changes nothing', async () => {
+  const { CHECKS } = await load();
+  const worker = service([[/uploader\.hrdq\.workers\.dev\/api\/status$/, { status: 200, json: { canSubmitNow: true } }]]);
+  assert.equal((await CHECKS.UPLOADER_APP_TOKEN({ UPLOADER_APP_TOKEN: 'tok' }, { http: worker.http })).state, 'ok');
+  assert.equal(worker.calls[0].headers.Authorization, 'Bearer tok');
+  const refused = service([[/api\/status$/, { status: 401, json: null }]]);
+  assert.equal((await CHECKS.UPLOADER_APP_TOKEN({ UPLOADER_APP_TOKEN: 'old' }, { http: refused.http })).state, 'failed');
+  assert.equal((await CHECKS.UPLOADER_APP_TOKEN({}, { http: worker.http })).state, 'missing');
+});
+
 test('a secret marked optional is a decision when it is not set, and a red line when it is not', async () => {
   /* The workflow that reads an optional key says so and skips, so a key nobody has created yet
      must not message the maintainer every morning. */

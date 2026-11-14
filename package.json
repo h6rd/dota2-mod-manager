@@ -53,8 +53,10 @@
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.2.1",
     "axe-core": "^4.14.0",
+    "dota-loadout": "file:vendor/dota-loadout",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^10.14.0",
     "fast-check": "^4.10.2",
     "motion": "^14.10.1",
@@ -63,8 +65,7 @@
     "react-dom": "^19.3.1",
     "three": "^0.187.0",
     "typescript": "^5.9.3",
-    "vite": "^8.3.6",
-    "dota-loadout": "file:vendor/dota-loadout"
+    "vite": "^8.3.6"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",

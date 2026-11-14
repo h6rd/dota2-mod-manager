@@ -148,6 +148,19 @@ export const CHECKS = {
     return failed(`the counter answers HTTP ${res.status}`);
   },
 
+  /* Optional: a release built without it can still upload with a key the author sets. GET
+     /api/status answers the caller's quota and is read-only, so this asks the cheapest question
+     that proves the token: 200 for the right one, 401 or 403 for any other. */
+  async UPLOADER_APP_TOKEN(env, { http }) {
+    if (!env.UPLOADER_APP_TOKEN) return missing('UPLOADER_APP_TOKEN');
+    const res = await http('https://uploader.hrdq.workers.dev/api/status', {
+      headers: { Authorization: `Bearer ${env.UPLOADER_APP_TOKEN}` },
+    });
+    if (res.status >= 200 && res.status < 300) return ok('the upload worker accepts the token');
+    if (res.status === 401 || res.status === 403) return failed('the upload worker refuses the token: it was changed on the Worker');
+    return failed(`the upload worker answers HTTP ${res.status}`);
+  },
+
   async DISCORD_WEBHOOK_URL(env, io) {
     return webhook('DISCORD_WEBHOOK_URL', env.DISCORD_WEBHOOK_URL, io);
   },

@@ -616,6 +616,8 @@ that location is not writable.
 | `src/ready-presets.ts`, `src/ready-presets-format.ts` | The ready-made presets (`config/presets.json`): fetched and checked like the remote config, kept between starts, cut down to catalog mods with a name in both languages |
 | `src/creator.ts` | The author's drafts of mods for the catalog, kept under userData, and one written out as the archive PreMod makes |
 | `src/creator-premod.ts` | PreMod's archive of a draft (the VPK zipped, a WebP preview, mod.json, hash.json) and the catalog upload page's rules for a mod |
+| `src/creator-upload.ts` | A draft sent to the catalog's upload worker: the site's own form, each style zipped beside a WebP preview, under the app token, with the terms recorded in the app |
+| `src/uploader-token.ts` | The upload token a release build carries, encrypted into src/cache/state.bin at build time; the key is in the build, so this keeps it out of `strings`, not out of an unpacked asar |
 | `tools/sign-catalog.js` | The signing side, for whoever holds a private key |
 | `src/safe-zip.ts` | Every foreign archive comes through here |
 | `src/steam.ts` | Finding Steam and the game, and proving the folder is really a game |

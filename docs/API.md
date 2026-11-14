@@ -44,6 +44,7 @@ the code, not in this page.
 | [`src/courier-models.ts`](#srccourier-modelsts) | A courier look's models, under the Default Courier's paths. |
 | [`src/crash-watch.ts`](#srccrash-watchts) | Dota closing seconds after Play, told to the window with the mods that are new since it last |
 | [`src/creator-premod.ts`](#srccreator-premodts) | A draft as the catalog takes it: the archive h6rd/PreMod makes, and the rules the catalog's |
+| [`src/creator-upload.ts`](#srccreator-uploadts) | Sending a draft to the catalog's upload API (the worker behind |
 | [`src/creator.ts`](#srccreatorts) | The author's drafts (issue #236, step 1): a mod being made for the catalog, kept on the author's |
 | [`src/cursors.ts`](#srccursorsts) | Which cursor set is live, and which look a slot is wearing. |
 | [`src/deep-links.ts`](#srcdeep-linksts) | d2mm:// links: a preset or a single mod clicked anywhere on the system, and on Linux, telling |
@@ -238,6 +239,7 @@ the code, not in this page.
 | [`src/unusual-effects.ts`](#srcunusual-effectsts) | The game's unusual and ethereal effects, read out of items_game.txt (issue #393). An owned |
 | [`src/update-impact.ts`](#srcupdate-impactts) | Which installed mods a Dota update reached. |
 | [`src/updater.ts`](#srcupdaterts) | Where an installed copy looks for a new version, and on which channel. |
+| [`src/uploader-token.ts`](#srcuploader-tokents) | The upload token a release build carries, so its owner can send mods without creating a key. |
 | [`src/vpk-analyze.ts`](#srcvpk-analyzets) | What a mod changes, read from the paths inside it: which heroes, which equip slots, or which |
 | [`src/vpk-fingerprint.ts`](#srcvpk-fingerprintts) | What a mod is, whatever it is packed as: a fingerprint of its files (src/vpk.ts gathers the VPK |
 | [`src/vpk-pack.ts`](#srcvpk-packts) | Packing a folder of loose game files into a mod: where the content starts under the folder an |
@@ -2139,9 +2141,10 @@ A mod with styles carries one zip and one preview per style, named `<name> <labe
 them in mod.json the way the catalog lists styles. What the upload form asks besides the files
 (category, hero, description, the mod it updates) goes in submit.json, under the form's names.
 
-The rules are the upload page's: a Latin name with single spaces, 29 characters at most (39 for
-the two heroes whose names are that long), the hero's name in it for a hero's mod, no more than
-three styles with labels of 12 characters, and 100 MB for the whole archive.
+The rules are the upload page's: a Latin name with single spaces (the hyphen in a hero's own
+name stays), 29 characters at most (39 for the two heroes whose names are that long), the hero's
+name in it for a hero's mod, no more than three styles with labels of 12 characters, and 100 MB
+for the whole archive.
 
 ### `MAX_STYLES`
 
@@ -2170,29 +2173,123 @@ Is this a WebP picture, by its RIFF header.
 ### `premodArchive`
 
 ```ts
-export function premodArchive(d: { name: string; category: string; hero: string; description: string; author: string; replaces: { category: string; name: string } | null }, styles: PackedStyle[]): { name: string; zip: Buffer }
+export function premodArchive(d: ArchiveDraft, styles: PackedStyle[]): { name: string; zip: Buffer }
 ```
 
 The archive PreMod would make of these files, with the form's fields beside it.
 
+## src/creator-upload.ts
+
+Sending a draft to the catalog's upload API (the worker behind
+h6rd/Dota2PornFxWeb's upload.html). The form is the site's: the same field names, the same
+rules, and the same shape of files - each style goes as a zip holding one .vpk, beside its
+854x480 WebP preview. The desktop app identifies itself with a bearer token, which is what
+lets the worker skip the browser captcha; the terms are accepted in the app and recorded by
+the app's own API (src/creator.ts), as the worker treats an app-token submission as consent.
+
+Nothing here touches Electron or the disk beyond reading a token file, so the form can be
+built and checked in plain Node.
+
+### `UPLOAD_API`
+
+```ts
+export const UPLOAD_API = 'https://uploader.hrdq.workers.dev'
+```
+
+The worker the catalog's upload page posts to.
+
+### `UPLOAD_CONSENT_VERSION`
+
+```ts
+export const UPLOAD_CONSENT_VERSION = '1'
+```
+
+The terms version the app records when an author accepts them; must match the worker's.
+
+### `UploadStyle`
+
+```ts
+export interface UploadStyle { label: string; colors: string[]; vpk: Buffer; preview: Buffer }
+```
+
+One style as the API takes it: its label, its circle colours, its VPK and WebP preview.
+
+### `UploadReply`
+
+```ts
+export interface UploadReply { ok: true; id: string; prUrl: string }
+```
+
+What the worker answers a successful submission with: the catalog id and the pull request it opened.
+
+### `UploadStatus`
+
+```ts
+export interface UploadStatus
+```
+
+This caller's quota and cooldown, as GET /api/status reports them.
+
+### `vpkArchive`
+
+```ts
+export function vpkArchive(name: string, vpk: Buffer): Buffer
+```
+
+A zip holding exactly the one .vpk the upload API unpacks and checks.
+
+### `uploadForm`
+
+```ts
+export function uploadForm(draft: Draft, styles: UploadStyle[]): FormData
+```
+
+The form the site posts, built from a draft.
+
+### `submitMod`
+
+```ts
+export async function submitMod({ draft, styles, token, fetchImpl = fetch, api = UPLOAD_API }: { draft: Draft; styles: UploadStyle[]; token: string; fetchImpl?: typeof fetch; api?: string; }): Promise<UploadReply>
+```
+
+POST /api/submit with the form above; the worker answers with the pull request it opened.
+
+### `uploadStatus`
+
+```ts
+export async function uploadStatus({ token, fetchImpl = fetch, api = UPLOAD_API }: { token: string; fetchImpl?: typeof fetch; api?: string; }): Promise<UploadStatus>
+```
+
+GET /api/status: the quota and cooldown the worker keeps for this caller.
+
+### `uploadToken`
+
+```ts
+export function uploadToken(embedded: string | null = embeddedUploadToken()): string | null
+```
+
+The app token: the encrypted one built into a release (tools/uploader-token.mjs from the
+`UPLOADER_APP_TOKEN` GitHub secret). This is the only source: there is no way for a user to
+paste or save a key of their own.
+
 ## src/creator.ts
 
 The author's drafts (issue #236, step 1): a mod being made for the catalog, kept on the author's
-disk until it is ready, and then written out as the archive the catalog's own packer makes
-(src/creator-premod.ts) for the catalog's maintainer. Nothing is uploaded: the catalog is not ours to write to, and an upload
-service is the second step, decided with its maintainer.
+disk until it is ready, and then either written out as the archive the catalog's own packer makes
+(src/creator-premod.ts) for the catalog's maintainer, or sent to the catalog's upload API
+(src/creator-upload.ts) as the form that API takes.
 
 A draft is a folder under userData/creator/<id>/: draft.json and the files it names, copied in so
-the draft survives the originals being moved. Each style is a look of the mod with its own VPK
-and picture, the way the catalog lists styles.
+the draft survives the originals being moved. Each style is a look of the mod with its own VPK,
+picture and up to two circle colours, the way the catalog lists styles.
 
 ### `DraftStyle`
 
 ```ts
-export interface DraftStyle { label: string; vpk: string | null; picture: string | null }
+export interface DraftStyle { label: string; vpk: string | null; picture: string | null; colors: string[] }
 ```
 
-One look of the mod: its label, its VPK and its picture, by file name inside the draft.
+One look of the mod: its label, its VPK, its picture and its circle colours, by file name inside the draft.
 
 ### `Draft`
 
@@ -2205,10 +2302,18 @@ A mod being made for the catalog.
 ### `DraftFields`
 
 ```ts
-export type DraftFields = Partial<Pick<Draft, 'name' | 'category' | 'hero' | 'description' | 'author' | 'replaces'>> & { styles?: { label: string }[] }
+export type DraftFields = Partial<Pick<Draft,
 ```
 
 What the form may change; the rest is the store's.
+
+### `STYLE_COLORS`
+
+```ts
+export const STYLE_COLORS = ['#ddd4ff', '#ff8f8f', '#8fd3ff']
+```
+
+The palette the catalog offers for a style's circle, in the order a new style takes them.
 
 ### `createCreator`
 
@@ -14323,6 +14428,49 @@ export function createUpdater({ autoUpdater, isPortable = false, channel = () =>
 @param deps.send         tells the window an update exists
 @param deps.every        so a test does not wait four hours
 ```
+
+## src/uploader-token.ts
+
+The upload token a release build carries, so its owner can send mods without creating a key.
+Written into src/cache/state.bin by tools/uploader-token.mjs from the repository secret
+UPLOADER_APP_TOKEN; absent in a source checkout. The name says nothing about the token, so it
+does not stand out in an unpacked app.
+
+The token is encrypted so it does not show up in `strings` or a plain grep of the packaged app.
+The key travels inside the app too, so this is a speed bump, not a secret: anybody determined
+enough to unpack the asar and read this file can decrypt it. Revoking it means a release.
+
+### `EMBEDDED_TOKEN_FILE`
+
+```ts
+export const EMBEDDED_TOKEN_FILE = path.join(import.meta.dirname, 'cache', 'state.bin')
+```
+
+Where the build tool writes the token, beside this module so electron-builder packs it.
+
+### `encodeEmbeddedToken`
+
+```ts
+export function encodeEmbeddedToken(token: string): Buffer
+```
+
+The token in the file's format: magic, IV, authentication tag and the encrypted bytes.
+
+### `decodeEmbeddedToken`
+
+```ts
+export function decodeEmbeddedToken(raw: Buffer): string | null
+```
+
+The token out of that format, or null when the file is missing, truncated or tampered with.
+
+### `embeddedUploadToken`
+
+```ts
+export function embeddedUploadToken(): string | null
+```
+
+The token built into this copy of the app, or null for a source checkout or a fork's build.
 
 ## src/vpk-analyze.ts
 

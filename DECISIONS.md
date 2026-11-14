@@ -48,7 +48,7 @@ where it runs before the suite.
 
 `adm-zip`, `electron-updater`, `undici` and `meshoptimizer` ship inside it. `undici` supplies the supported
 HTTP/HTTPS `ProxyAgent` used when a user configures a download proxy; implementing CONNECT and
-streaming transport here would duplicate a networking client in the app. `electron`, `electron-builder`, `eslint`,
+streaming transport here would duplicate a networking client in the app. `electron`, `electron-builder`, `electron-rebuild`, `eslint`,
 `typescript`, `fast-check` and `axe-core` only build and check it, and never reach a user's machine. The VPK reader and writer, the
 KeyValues parser, the zip guards, the mirror logic and the update checks are written here,
 because every dependency is a stranger with write access to a game folder on tens of thousands
@@ -121,7 +121,7 @@ It also flips a check on the OpenSSF Scorecard, which recognises fuzzing in Java
 through a short list of libraries and not through generators of our own. That is a real reason and
 not the reason: the shrinking is.
 
-Seven more came on 2026-09-27 with the decision below, `axe-core` on 2026-10-11 (above), `qrcode-generator` on 2026-11-03 and `three` with `@types/three` the same day (above), and `dota-loadout` for the Studio renderer, seventeen
+Seven more came on 2026-09-27 with the decision below, `axe-core` on 2026-10-11 (above), `qrcode-generator` on 2026-11-03 and `three` with `@types/three` the same day (above), and `dota-loadout` for the Studio renderer, eighteen
 devDependencies in all. `vite` and
 `@vitejs/plugin-react` build the window's page. `react`, `react-dom` and `motion` are written into
 that page once a screen imports them, which makes them part of the app in every sense but the

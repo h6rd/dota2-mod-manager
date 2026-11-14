@@ -207,10 +207,8 @@ export const CHANNEL_ARGS: Record<string, Check[]> = {
   'fx:search': [str(200)], 'fx:heroes': [], 'fx:hero': [str(40, 2)], 'fx:load': [str(300, 1)], 'fx:preview': [str(300, 1), EFFECT_EDITS], 'fx:install': [str(300, 1), EFFECT_EDITS, optional(bool)],
   // the author's drafts (src/ipc-creator.ts): the files come from a dialog, never from here
   'creator:list': [], 'creator:remove': [ID], 'creator:export': [ID, optional(list(optional(bytes(8 * MB)), 3))],
-  'creator:save': [optional(ID), shape({
-    name: optional(str(500)), category: optional(str(60)), hero: optional(str(60)), description: optional(str(5000)), author: optional(str(200)),
-    replaces: optional(shape({ category: str(60, 1), name: str(500, 1) })), styles: optional(list(shape({ label: str(200) }), 12)),
-  })],
+  'creator:accept': [], 'creator:history': [], 'creator:upload': [ID, optional(list(optional(bytes(8 * MB)), 3))],
+  'creator:save': [optional(ID), shape({ name: optional(str(500)), category: optional(str(60)), subcategory: optional(str(60)), hero: optional(str(60)), description: optional(str(5000)), authorMode: optional(oneOf('existing', 'new', 'skip')), author: optional(str(200)), authorUrl: optional(str(2048)), extraMode: optional(oneOf('none', 'author', 'source', 'modded')), extraOrigin: optional(oneOf('existing', 'new')), extraName: optional(str(2048)), extraUrl: optional(str(2048)), video: optional(str(2048)), tags: optional(json(64 * 1024)), replaces: optional(shape({ category: str(60, 1), name: str(500, 1) })), styles: optional(list(shape({ label: str(200), colors: optional(list(str(9), 2)) }), 12)), })],
   'creator:attach': [ID, num(0, 11), oneOf('vpk', 'picture')],
   'rank:state': [], 'rank:pictures': [], 'rank:install': [json(64 * 1024)],
   // the map without its decor (src/ipc-decor.ts): the groups taken off

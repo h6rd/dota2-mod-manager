@@ -37,6 +37,38 @@ test('a new draft keeps what the form sends, trimmed, and lists first when touch
   assert.equal(first.description.length, 2000);
 });
 
+test('picking an existing author stays a picked author, even before a name is chosen', () => {
+  const { creator } = setup();
+  const d = creator.save(null, { name: 'Blue Glow', authorMode: 'existing', author: '' });
+  assert.equal(d.authorMode, 'existing');
+  const picked = creator.save(d.id, { author: 'Someone' });
+  assert.equal(picked.authorMode, 'existing');
+  assert.equal(picked.author, 'Someone');
+});
+
+test('the upload form keeps the hero, subcategory, tags, links and style colours, and the terms are recorded', () => {
+  const { creator } = setup();
+  const d = creator.save(null, {
+    name: 'Blue Glow', category: 'hero-items', subcategory: 'weapons', hero: 'Anti-Mage',
+    authorMode: 'new', author: 'me', authorUrl: 'https://example.com/me',
+    extraMode: 'source', extraOrigin: 'new', extraName: 'someone', extraUrl: 'https://example.com/source',
+    video: 'https://youtu.be/x', tags: { weapon: true, effects: false },
+    styles: [{ label: 'Day', colors: ['#112233', '#445566'] }, { label: 'Night', colors: ['#778899'] }],
+  });
+  assert.equal(creator.list()[0].hero, 'Anti-Mage');
+  assert.equal(creator.list()[0].subcategory, 'weapons');
+  assert.equal(creator.list()[0].authorMode, 'new');
+  assert.equal(creator.list()[0].extraMode, 'source');
+  assert.equal(creator.list()[0].extraOrigin, 'new');
+  assert.deepEqual(creator.list()[0].tags, { weapon: true }, 'only the switches that are on are kept');
+  assert.deepEqual(creator.list()[0].styles.map((s) => s.colors), [['#112233', '#445566'], ['#778899']]);
+  assert.equal(creator.consent().accepted, false);
+  assert.equal(creator.acceptTerms('1', '2026-01-01T00:00:00.000Z').accepted, true);
+  assert.deepEqual(creator.consent(), { accepted: true, version: '1', at: '2026-01-01T00:00:00.000Z' });
+  creator.save(d.id, { tags: { base: true } });
+  assert.deepEqual(creator.list()[0].tags, { base: true });
+});
+
 test('a file that is not a VPK or a picture is refused, and the draft is unchanged', () => {
   const { creator, txt } = setup();
   const d = creator.save(null, { name: 'x' });
@@ -105,6 +137,9 @@ test('the catalog’s rules: a Latin name, the hero in a hero’s mod, three sty
   assert.throws(() => creator.bundle(d.id, [WEBP]), /геро|hero/i);
   creator.save(d.id, { name: 'Antimage Blue Glow' });
   assert.equal(creator.bundle(d.id, [WEBP]).name, 'Antimage Blue Glow.zip');
+  // the hyphen in a hero's own name is part of the name, not punctuation to strip
+  creator.save(d.id, { name: 'Anti-Mage Blue Glow' });
+  assert.equal(creator.bundle(d.id, [WEBP]).name, 'Anti-Mage Blue Glow.zip');
   const many = creator.save(d.id, { styles: [1, 2, 3, 4].map((i) => ({ label: `s${i}` })) });
   assert.equal(many.styles.length, 3, 'the form keeps no more styles than the catalog takes');
 });

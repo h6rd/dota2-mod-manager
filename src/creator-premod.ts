@@ -12,9 +12,10 @@
  * them in mod.json the way the catalog lists styles. What the upload form asks besides the files
  * (category, hero, description, the mod it updates) goes in submit.json, under the form's names.
  *
- * The rules are the upload page's: a Latin name with single spaces, 29 characters at most (39 for
- * the two heroes whose names are that long), the hero's name in it for a hero's mod, no more than
- * three styles with labels of 12 characters, and 100 MB for the whole archive.
+ * The rules are the upload page's: a Latin name with single spaces (the hyphen in a hero's own
+ * name stays), 29 characters at most (39 for the two heroes whose names are that long), the hero's
+ * name in it for a hero's mod, no more than three styles with labels of 12 characters, and 100 MB
+ * for the whole archive.
  */
 import crypto from 'node:crypto';
 import AdmZip from 'adm-zip';
@@ -27,7 +28,7 @@ const MAX_LABEL = 12;
 // the categories whose mods belong to one hero, and the ones the upload page does not take
 const HERO_CATEGORIES = ['heroes', 'hero-items', 'herofx', 'hero-sounds'];
 const NOT_TAKEN = ['packs', 'cursors', 'tools', 'news', 'guides', 'sites', 'fonts', 'creeps'];
-const NAME = /^[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$/;
+const NAME = /^[a-zA-Z0-9]+(?:[ -][a-zA-Z0-9]+)*$/;
 const LONG_HEROES = ['keeperofthelight', 'naturesprophet'];
 
 const bare = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -40,7 +41,12 @@ export function catalogProblems(d: { name: string; category: string; hero: strin
   if (d.name && !NAME.test(d.name)) out.push(t('название латиницей и цифрами, через одиночные пробелы'));
   if (d.name.length > room) out.push(t('название не длиннее {0} символов', room));
   if (NOT_TAKEN.includes(d.category)) out.push(t('эта категория в каталог через загрузку не принимается'));
-  if (HERO_CATEGORIES.includes(d.category) && hero && d.name && !bare(d.name).includes(hero)) out.push(t('имя героя в названии'));
+  if (HERO_CATEGORIES.includes(d.category) && !hero) out.push(t('выбери героя'));
+  if (HERO_CATEGORIES.includes(d.category) && hero && d.name) {
+    const flat = bare(d.name);
+    if (!flat.includes(hero)) out.push(t('имя героя в названии'));
+    else if (!flat.split(hero).join('')) out.push(t('после имени героя нужно название'));
+  }
   if (d.styles.length > MAX_STYLES) out.push(t('не больше {0} стилей', MAX_STYLES));
   if (d.styles.length > 1 && d.styles.some((s) => s.label.length > MAX_LABEL)) out.push(t('название стиля не длиннее {0} символов', MAX_LABEL));
   return out;
@@ -55,8 +61,19 @@ const sha256 = (b: Buffer) => crypto.createHash('sha256').update(b).digest('hex'
 /** One look of the mod, ready to pack: its label, its VPK, its WebP preview. */
 interface PackedStyle { label: string; vpk: Buffer; preview: Buffer }
 
+/** The fields of a draft the archive's mod.json is built from. */
+interface ArchiveDraft {
+  name: string; category: string; hero: string; description: string; replaces: { category: string; name: string } | null;
+  authorMode: 'existing' | 'new' | 'skip'; author: string; authorUrl: string;
+  extraMode: 'none' | 'author' | 'source' | 'modded'; extraName: string; extraUrl: string;
+}
+
+/** A name or a link, as the catalog's mod.json credits one. */
+const credit = (type: string, name: string, url: string) => (url || /^https?:\/\//i.test(name)
+  ? { type, url: url || name } : { type, name });
+
 /** The archive PreMod would make of these files, with the form's fields beside it. */
-export function premodArchive(d: { name: string; category: string; hero: string; description: string; author: string; replaces: { category: string; name: string } | null },
+export function premodArchive(d: ArchiveDraft,
   styles: PackedStyle[]): { name: string; zip: Buffer } {
   const outer = new AdmZip();
   const named = styles.map((s, i) => {
@@ -68,14 +85,16 @@ export function premodArchive(d: { name: string; category: string; hero: string;
     outer.addFile(`${base}.webp`, s.preview);
     return { label: s.label || null, file: `${base}.zip`, preview: `${base}.webp`, zip, vpk: s.vpk };
   });
-  const author = /^https?:\/\//i.test(d.author) ? { type: 'author', url: d.author } : { type: 'author', name: d.author };
+  const links = [];
+  if (d.authorMode !== 'skip' && d.author) links.push(credit('author', d.author, d.authorUrl));
+  if (d.extraMode !== 'none' && d.extraName) links.push(credit(d.extraMode, d.extraName, d.extraUrl));
   const entry = {
     name: d.name,
     preview: named[0].preview,
     file: named[0].file,
     ...(named.length > 1 ? { styles: named.map((n) => ({ label: n.label, file: n.file, preview: n.preview })) } : {}),
     tags: {},
-    links: [author],
+    links,
   };
   outer.addFile('mod.json', Buffer.from(JSON.stringify(entry, null, 2)));
   outer.addFile('hash.json', Buffer.from(JSON.stringify({ mod_name: d.name, vpk_hash: sha256(named[0].vpk), vpk_zip_hash: sha256(named[0].zip) }, null, 2)));

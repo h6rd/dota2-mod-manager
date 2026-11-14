@@ -131,6 +131,12 @@ jobs:
         env:
           STATS_APP_TOKEN: ${{ secrets.STATS_APP_TOKEN }}
 
+      # the catalog uploader's token, encrypted into the build from a secret and never into git
+      - name: Give the build the catalog uploader's token
+        run: node tools/uploader-token.mjs
+        env:
+          UPLOADER_APP_TOKEN: ${{ secrets.UPLOADER_APP_TOKEN }}
+
       - name: Build and upload the installer to the draft
         run: npx electron-builder --win --publish always
         env:
@@ -202,6 +208,11 @@ jobs:
         run: node tools/stats-token.mjs
         env:
           STATS_APP_TOKEN: ${{ secrets.STATS_APP_TOKEN }}
+
+      - name: Give the build the catalog uploader's token
+        run: node tools/uploader-token.mjs
+        env:
+          UPLOADER_APP_TOKEN: ${{ secrets.UPLOADER_APP_TOKEN }}
 
       - name: Build and upload the AppImage to the draft
         run: npx electron-builder --linux --publish always
