@@ -27,11 +27,11 @@ test('the hero’s name is written in when it is missing, and kept when it is th
   assert.equal(ensureHero('Blue Glow', 'Anti-Mage'), 'Anti-Mage Blue Glow');
   assert.equal(ensureHero('Anti-Mage Blue Glow', 'Anti-Mage'), 'Anti-Mage Blue Glow');
   assert.equal(ensureHero('Blue Glow', 'Keeper of the Light'), 'Keeper of the Light Blue Glow');
-  assert.equal(ensureHero('Blue Glow', "Nature's Prophet"), "Natures Prophet Blue Glow");
+  assert.equal(ensureHero('Blue Glow', "Nature's Prophet"), 'Natures Prophet Blue Glow');
 });
 
 test('a picked hero replaces the one the name already has', () => {
-  const heroes = ['Anti-Mage', 'Axe', 'Nature\'s Prophet'];
+  const heroes = ['Anti-Mage', 'Axe', "Nature's Prophet"];
   assert.equal(heroIn('Anti-Mage Blue Glow', heroes), 'Anti-Mage');
   assert.equal(swapHero('Anti-Mage Blue Glow', 'Axe', heroes), 'Axe Blue Glow');
   assert.equal(swapHero('Blue Glow', 'Axe', heroes), null);
