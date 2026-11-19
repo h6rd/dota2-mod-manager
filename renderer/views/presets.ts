@@ -23,7 +23,6 @@ import { showPresets } from '../presets/PresetsScreen.tsx';
 import type { OwnPreset, PresetsActions, ReadyPreset, SharedPreset } from '../presets/model.ts';
 import type { PresetRecord, ReadyPresetRecord } from '../api/content.ts';
 import { shareDialog, shareSheet } from './presets/share.ts';
-import { presetPicture } from './presets/picture.ts';
 import { recPreviewUrl } from '../ui/thumb.ts';
 import { isVideo } from '../ui/media.ts';
 
@@ -34,7 +33,7 @@ let ready: ReadyPresetRecord[] = [];
 let byId = new Map<string, LibRecord>();
 let key = 0;
 
-registerView('presets', () => renderPresets(true));
+registerView('presets', (o) => renderPresets(!o?.background));
 
 const STRIP = 12;
 const mods = (n: number) => `${n} ${plural(n, 'мод', 'мода', 'модов')}`;
@@ -126,8 +125,10 @@ function readyCard(p: ReadyPresetRecord): ReadyPreset {
 }
 
 async function renderPresets(fresh = false): Promise<void> {
-  [presets, ready] = await Promise.all([window.api.presets.list(), window.api.presets.ready().catch(() => [])]);
-  const { installed } = await window.api.mods.list();
+  let installed: unknown[];
+  [presets, ready, { installed }] = await Promise.all([
+    window.api.presets.list(), window.api.presets.ready().catch(() => []), window.api.mods.list(),
+  ]);
   byId = new Map<string, LibRecord>((installed as LibRecord[]).map((m) => [m.id, m]));
   if (fresh) key++;
   // a ready preset taken is one of yours as well: renamed, shared or deleted from your list
@@ -148,7 +149,7 @@ async function share(id: string) {
   const covers = (preset.modIds || []).map((m) => byId.get(m)).map((r) => (r ? recPreviewUrl(r) : null))
     .filter((u): u is string => Boolean(u) && !isVideo(u!));
   const card = ownCard(preset, byId);
-  const picture = link.web ? () => presetPicture({ name: preset.name, count: card.count, covers, link: link.web! }) : undefined;
+  const picture = link.web ? () => import('./presets/picture.ts').then((m) => m.presetPicture({ name: preset.name, count: card.count, covers, link: link.web! })) : undefined;
   if (await shareSheet(preset, link.error ? null : link, picture) !== 'file') return;
   const plan = await window.api.presets.exportPlan(id);
   if (plan.error) { toast(plan.error, 'error', 6000); return; }

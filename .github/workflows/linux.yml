@@ -27,7 +27,10 @@ permissions:
 jobs:
   build:
     name: Build the AppImage
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: the AppImage carries the build machine's WebKitGTK, which asks for that
+    # machine's glibc. Built on Ubuntu 26.04, 4.0.0 needed glibc 2.43 and did not start on Linux
+    # Mint 22 or Ubuntu 24.04. The oldest runner is the widest reach.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -44,18 +47,19 @@ jobs:
 
       # What Tauri needs to build on Linux (WebKitGTK, the tray, icons, patchelf for the bundle),
       # and xvfb, xdg-utils and desktop-file-utils for the first start below. apt drops a silent
-      # mirror after 30 s and tries another, and the step gives up at ten minutes.
+      # mirror after 30 s, the packages come from the cache when a mirror only trickles
+      # (.github/actions/linux-libraries), and the step gives up at ten minutes.
       - name: System libraries
         timeout-minutes: 10
-        run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdg-utils desktop-file-utils
+        uses: ./.github/actions/linux-libraries
+        with:
+          packages: libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdg-utils desktop-file-utils
 
       # Not published: this proves the build works. release.yml builds the one people download.
       # its own release build, saved on main for the next merge
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          shared-key: release
+          shared-key: release-ubuntu-24.04
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build
         run: npx tauri build --bundles appimage
@@ -70,6 +74,9 @@ jobs:
           chmod +x "$img"
           "$img" --appimage-extract > /dev/null
           ls squashfs-root
+
+      - name: The AppImage starts on glibc 2.39 (Ubuntu 24.04, Linux Mint 22)
+        run: node tools/release/glibc-floor.mjs squashfs-root 2.39
 
       # The .desktop file inside the AppImage is what an AppImage integrator reads, and it has to
       # name the preset file type (tauri.conf.json fileAssociations).

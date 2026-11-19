@@ -50,6 +50,11 @@ export interface LibRecord {
   match?: Match | null;
   files: LibFile[];
   members?: Member[];
+  /** a mod inside a pack, as the installed index lists it: the pack that holds it */
+  packId?: string;
+  packName?: string;
+  /** the shared pack the app folds mods into when the pak slots run out */
+  auto?: boolean;
   /** the part of the load order a mod keeps to (src/slot-zones.ts) */
   zone?: unknown;
   /** how many heroes an import skins: two or more can be split */
@@ -96,8 +101,9 @@ export interface RepairState {
   state: 'idle' | 'waiting' | 'failed' | 'done' | string;
   error?: string;
   healed?: unknown[];
-  /** the mods whose files the patch changed, by name */
-  touched?: { build: string | null; mods: string[] };
+  /** the mods whose files the patch changed, by name; `off`, those switched off because their old
+   * interface files would stop Dota from starting (src game_repair.rs switch_off_crashing) */
+  touched?: { build: string | null; mods: string[]; off?: string[] };
   /** the patch landed while the app was closed, and the game was put back only at start */
   whileClosed?: true;
   /** waiting on Steam's file check or an update rather than on Dota */

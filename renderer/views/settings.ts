@@ -30,7 +30,7 @@ let key = 0;
 /** the last run of "Repair the app", kept while the page redraws */
 let repair: SettingsModel['repair'] = null;
 
-registerView('settings', () => renderSettings(true));
+registerView('settings', (o) => renderSettings(!o?.background));
 
 async function renderSettings(fresh = false): Promise<void> {
   /* Asked all at once: one after another they were seven trips to the main process before the page
@@ -56,6 +56,7 @@ async function renderSettings(fresh = false): Promise<void> {
     scalePct: Math.round((Number(s.uiScale) || 1) * 100),
     presence: s.discordPresence !== false,
     countDownloads: s.countDownloads !== false,
+    autoPack: s.autoPack !== false,
     everyone: {
       on: s.everyoneWearsMine === true,
       built: s.everyoneBuilt ?? [],
@@ -85,7 +86,7 @@ function draw(): void {
 }
 
 /** A switch that shows its new position at once and tells main after. */
-function flip(field: 'presence' | 'adult' | 'countDownloads'): boolean {
+function flip(field: 'presence' | 'adult' | 'countDownloads' | 'autoPack'): boolean {
   if (!model) return false;
   model = { ...model, [field]: !model[field] };
   draw();
@@ -116,6 +117,9 @@ const actions: SettingsActions = {
   },
   countDownloads: async () => {
     state.settings = await window.api.settings.set('countDownloads', flip('countDownloads'));
+  },
+  autoPack: async () => {
+    state.settings = await window.api.settings.set('autoPack', flip('autoPack'));
   },
   everyone: async () => {
     if (!model) return;

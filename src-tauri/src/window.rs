@@ -109,7 +109,14 @@ impl Shell {
         if self.login_allowed {
             use tauri_plugin_autostart::ManagerExt;
             let auto = app.autolaunch();
-            let r = if mm_core::tray::in_background(&s) { auto.enable() } else { auto.disable() };
+            let r = if !mm_core::tray::in_background(&s) {
+                auto.disable()
+            } else if mm_core::tray::switched_off_in_windows(startup_approved().as_deref()) {
+                // the person turned it off in Task Manager: their word stands over the setting
+                Ok(())
+            } else {
+                auto.enable()
+            };
             if let Err(e) = r {
                 eprintln!("[mm-shell] login item not set: {e}");
             }
@@ -222,8 +229,6 @@ pub fn open(app: &tauri::App, owner: Arc<Backend>, o: Open) -> tauri::Result<Web
         login_allowed: o.login_allowed,
     });
     app.manage(shell.clone());
-    let opener = app.handle().clone();
-    let popups = app.handle().clone();
     let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()));
     if let Some(dir) = &o.webview_data {
         builder = builder.data_directory(dir.clone());
@@ -243,12 +248,12 @@ pub fn open(app: &tauri::App, owner: Arc<Backend>, o: Open) -> tauri::Result<Web
                 return true;
             }
             eprintln!("[mm-shell] blocked navigation to {}", url.as_str().chars().take(200).collect::<String>());
-            leave_for_browser(&opener, url);
+            leave_for_browser(url);
             false
         })
         .on_new_window(move |url, _| {
             eprintln!("[mm-shell] blocked window.open to {}", url.as_str().chars().take(200).collect::<String>());
-            leave_for_browser(&popups, &url);
+            leave_for_browser(&url);
             tauri::webview::NewWindowResponse::Deny
         })
         .center()
@@ -274,11 +279,39 @@ pub fn open(app: &tauri::App, owner: Arc<Backend>, o: Open) -> tauri::Result<Web
     Ok(win)
 }
 
-fn leave_for_browser(app: &AppHandle, url: &tauri::Url) {
+fn leave_for_browser(url: &tauri::Url) {
     if matches!(url.scheme(), "http" | "https") {
-        use tauri_plugin_opener::OpenerExt;
-        let _ = app.opener().open_url(url.as_str(), None::<&str>);
+        let _ = crate::host_open::open(url.as_str());
     }
+}
+
+/// The login item's `StartupApproved\Run` value, where Task Manager records it switched on or off.
+#[cfg(windows)]
+fn startup_approved() -> Option<Vec<u8>> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_BINARY};
+    let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+    let key = wide(r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run");
+    let name = wide(mm_core::tray::LOGIN_ITEM_NAME);
+    let mut buf = [0u8; 64];
+    let mut len = buf.len() as u32;
+    // SAFETY: both strings end in a nul, buf is as long as len says
+    let r = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            name.as_ptr(),
+            RRF_RT_REG_BINARY,
+            std::ptr::null_mut(),
+            buf.as_mut_ptr().cast(),
+            &mut len,
+        )
+    };
+    (r == 0).then(|| buf[..len as usize].to_vec())
+}
+
+#[cfg(not(windows))]
+fn startup_approved() -> Option<Vec<u8>> {
+    None
 }
 
 #[cfg(test)]

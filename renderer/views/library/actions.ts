@@ -1,6 +1,7 @@
 /* What My mods can ask for (library/model.ts, LibraryActions): the ticks, the search, the switches,
  * the bulk bar, the banners and the foreign files. What a single row's menu does is in
  * record-actions.ts. */
+import { state } from '../../core/store.ts';
 import { showInstallCheck } from './check.ts';
 import { banners } from './build.ts';
 import { allowItemTable } from '../../ui/game-files.ts';
@@ -172,6 +173,9 @@ async function banner(what: string, data?: string) {
     if (lib.repair.state === 'waiting') toast(L`Dota всё ещё запущена — закрой её полностью`, 'warn', 6000);
   } else if (what === 'repairSeen') {
     lib.repair = await window.api.patch.repairSeen();
+  } else if (what === 'russianVoiceSeen') {
+    // a player who chose Russian voices on purpose should not see the hint again
+    state.settings = await window.api.settings.set('russianVoiceSeen', true);
   } else if (what === 'moveFrom') {
     const r = await window.api.settings.moveLangFiles(data);
     if (r?.error) toast(r.error, 'error');
@@ -190,19 +194,27 @@ export const actions: LibraryActions = {
     if (lib.open.has(id)) lib.open.delete(id); else lib.open.add(id);
     screen.draw();
   },
+  // A switch flips the moment it is pressed: the row is drawn in its new state before main is asked,
+  // and put back if main refuses. Waiting for the answer left the switch standing still for the
+  // ~75 ms main takes to rewrite the pak, which read as a press that did not land.
   toggle: async (id) => {
     const rec = recById(id);
     if (!rec) return;
-    const r = await window.api.mods.setEnabled(rec.id, !rec.enabled);
-    if (r.error) toast(r.error, 'error', 6000);
+    const want = !rec.enabled;
+    rec.enabled = want;
+    screen.draw();
+    const r = await window.api.mods.setEnabled(rec.id, want);
+    if (r.error) { rec.enabled = !want; screen.draw(); toast(r.error, 'error', 6000); }
     // a cursor that goes on takes the place of the one that was on
     else if (r.replaced?.length) toast(L`Курсор заменён — «${r.replaced.join(', ')}» выключен`, 'warn', 6000);
     await screen.reload();
   },
   toggleMember: async (packId, memberId) => {
     const m = recById(packId)?.members?.find((x) => x.id === memberId);
-    const r = await window.api.packs.setMemberEnabled(packId, memberId, !(m && m.enabled));
-    if (r.error) toast(r.error, 'error', 6000);
+    const want = !(m && m.enabled);
+    if (m) { m.enabled = want; screen.draw(); }
+    const r = await window.api.packs.setMemberEnabled(packId, memberId, want);
+    if (r.error) { if (m) { m.enabled = !want; screen.draw(); } toast(r.error, 'error', 6000); }
     await screen.reload();
   },
   removeMember: async (packId, memberId) => {

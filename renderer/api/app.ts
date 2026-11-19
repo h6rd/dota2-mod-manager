@@ -14,6 +14,8 @@ export interface StoredSettings {
   langFolderLock?: string | null;
   uiLang: 'en' | 'ru' | 'zh-CN';
   langPromptSeen: boolean;
+  /** the hint about Russian voices under English text was waved away */
+  russianVoiceSeen?: boolean;
   uiScale: number;
   theme: string;
   /** starred catalog mods, as "<categoryId>|<name>" */
@@ -28,6 +30,8 @@ export interface StoredSettings {
   runInBackground?: boolean;
   /** installs of catalog mods are counted by the catalog's download counter (src/download-stats.ts) */
   countDownloads: boolean;
+  /** fold mods into the shared pack when the pak slots run out; on unless turned off */
+  autoPack?: boolean;
   /** everybody playing a hero the item builder dressed wears the same look (src/item-builder-everyone.ts) */
   everyoneWearsMine: boolean;
   /** the heroes it leaves alone, by id: every other hero built is dressed, as the game's limit allows (crates/mm-core/src/item_builder/item_builder_everyone_budget.rs) */
@@ -85,6 +89,10 @@ export interface AppSettings extends StoredSettings {
     folder: string;
     /** our mods left in a folder the game does not mount */
     stranded: { suffix: string; modFiles: number }[];
+    /** the text language in the game's own settings */
+    uiLanguage: string | null;
+    /** Valve's voice paks are downloaded into our folder */
+    voice: boolean;
   };
   /** news, once: the mods moved to another language folder on this start */
   langMigration: { from?: string; to: string } | null;

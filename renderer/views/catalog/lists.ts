@@ -5,7 +5,7 @@
  * the mod index is built here: it is a reading of the same data. */
 import { COSMETIC_PREFIX, CATALOG_EXCLUDE, TOOLS_HIDDEN } from '../../core/constants.ts';
 import { state } from '../../core/store.ts';
-import { pickedIn } from '../../core/installed.ts';
+import { pickedIn, picksRead } from '../../core/installed.ts';
 import { shownMods, isAdult, adultShown } from '../../core/adult.ts';
 import { heroMatches } from '../hero-grid.ts';
 import { catalogMatchesSearch, cosmeticMatchesSearch } from '../../ui/hero-name.ts';
@@ -123,11 +123,51 @@ export function favoriteMods(): Mod[] {
 // (ui/game-files.ts). Until 3.0 safe mode hid all of them, and the builder with them.
 /** The free looks and the builder's slots on offer: a hero with a persona on, its persona's alone (catalog/builder/logic.ts withPersonas). */
 export function cosmeticSlotList(): CosmeticSlot[] {
-  return withPersonas(state.cosmeticSlots || [], pickedIn);
+  return slotsOnOffer().list;
 }
 
 export function slotData(slot: string): CosmeticSlot | null {
-  return cosmeticSlotList().find((s) => s.slot === slot) || null;
+  return slotsOnOffer().bySlot.get(slot) || null;
+}
+
+/* Worked out once per slot list and per reading of the picks. Asked afresh every time, the rail
+ * asked it once per slot (isItemCosmeticSlot over every slot): about a thousand filters over a
+ * thousand slots, 17 ms of a click on Items. */
+let offer: { slots: CosmeticSlot[] | null; picks: number; list: CosmeticSlot[]; bySlot: Map<string, CosmeticSlot> } | null = null;
+function slotsOnOffer(): NonNullable<typeof offer> {
+  const slots = state.cosmeticSlots || null;
+  if (!offer || offer.slots !== slots || offer.picks !== picksRead) {
+    const list = withPersonas(slots || [], pickedIn);
+    offer = { slots, picks: picksRead, list, bySlot: new Map(list.map((s) => [s.slot, s])) };
+    for (const s of list) dress(s);
+  }
+  return offer;
+}
+
+/* The effects a slot offers come apart from the slots: they were 1.4 of the 5 MB the window read
+ * at start and after every pick, and only a hero's window shows them. Read once a slot, they stay
+ * for the run, and every reading of the slots after a pick gets them back. */
+const fxBySlot = new Map<string, NonNullable<CosmeticSlot['effects']>>();
+const fxAsked = new Set<string>();
+function dress(s: CosmeticSlot): void {
+  const fx = fxBySlot.get(s.slot);
+  if (fx) s.effects = fx;
+}
+
+/** These slots' effects read, for the hero's window to open with them. */
+export async function loadSlotEffects(slots: string[]): Promise<void> {
+  const want = slots.filter((s) => !fxAsked.has(s));
+  if (!want.length) return;
+  for (const s of want) fxAsked.add(s);
+  try {
+    const got = await window.api.cosmetics.effects(want);
+    for (const [slot, fx] of Object.entries(got || {})) fxBySlot.set(slot, fx);
+  } catch {
+    // asked again on the next open
+    for (const s of want) fxAsked.delete(s);
+    return;
+  }
+  if (offer) for (const s of offer.list) dress(s);
 }
 
 /** A hero's item, which the item builder (views/item-builder.ts) puts on rather than a slot of its own. */

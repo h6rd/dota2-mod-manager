@@ -310,11 +310,13 @@ pub fn window_settings() -> &'static HashMap<&'static str, Check> {
         HashMap::from([
             ("discordPresence", bool_()),
             ("countDownloads", bool_()),
+            ("autoPack", bool_()),
             ("everyoneWearsMine", bool_()),
             ("everyoneExcluded", list(str_(64, 0), 300)),
             ("favorites", list(str_(500, 0), 20000)),
             ("itemLooks", list(item_look, 2000)),
             ("langPromptSeen", bool_()),
+            ("russianVoiceSeen", bool_()),
             ("langFolderLock", one_of(&[None, Some("koreana"), Some("russian"), Some("schinese")])),
             ("modLabels", custom(mod_labels)),
             ("panels", either(vec![one_of(&[None]), json(64 * 1024)])),
@@ -398,6 +400,8 @@ pub fn channel_args() -> &'static HashMap<&'static str, Vec<Check>> {
             "hud:state",
             "fx:heroes",
             "creator:list",
+            "creator:accept",
+            "creator:history",
             "rank:state",
             "rank:pictures",
             "decor:state",
@@ -502,6 +506,7 @@ pub fn channel_args() -> &'static HashMap<&'static str, Vec<Check>> {
             ("cosmetics:heroPortraits", vec![list(str_or_num(100, 0), 1000), optional(bool_())]),
             ("cosmetics:heroPortraitsByName", vec![list(str_(200, 0), 1000)]),
             ("cosmetics:icons", vec![list(str_(500, 0), 20000)]),
+            ("cosmetics:effects", vec![list(str_(200, 1), 400)]),
             (
                 "cosmetics:pick",
                 vec![
@@ -583,6 +588,7 @@ pub fn channel_args() -> &'static HashMap<&'static str, Vec<Check>> {
             ("fx:install", vec![str_(300, 1), effect_edits(), optional(bool_())]),
             ("creator:remove", vec![ID()]),
             ("creator:export", vec![ID(), optional(list(optional(bytes(8.0 * MB)), 3))]),
+            ("creator:upload", vec![ID(), optional(list(optional(bytes(8.0 * MB)), 3))]),
             (
                 "creator:save",
                 vec![
@@ -590,11 +596,29 @@ pub fn channel_args() -> &'static HashMap<&'static str, Vec<Check>> {
                     shape(vec![
                         ("name", optional(str_(500, 0))),
                         ("category", optional(str_(60, 0))),
+                        ("subcategory", optional(str_(60, 0))),
                         ("hero", optional(str_(60, 0))),
                         ("description", optional(str_(5000, 0))),
+                        ("authorMode", optional(one_of(&[Some("existing"), Some("new"), Some("skip")]))),
                         ("author", optional(str_(200, 0))),
+                        ("authorUrl", optional(str_(2048, 0))),
+                        (
+                            "extraMode",
+                            optional(one_of(&[Some("none"), Some("author"), Some("source"), Some("modded")])),
+                        ),
+                        ("extraOrigin", optional(one_of(&[Some("existing"), Some("new")]))),
+                        ("extraName", optional(str_(2048, 0))),
+                        ("extraUrl", optional(str_(2048, 0))),
+                        ("video", optional(str_(2048, 0))),
+                        ("tags", optional(json(64 * 1024))),
                         ("replaces", optional(shape(vec![("category", str_(60, 1)), ("name", str_(500, 1))]))),
-                        ("styles", optional(list(shape(vec![("label", str_(200, 0))]), 12))),
+                        (
+                            "styles",
+                            optional(list(
+                                shape(vec![("label", str_(200, 0)), ("colors", optional(list(str_(9, 0), 2)))]),
+                                12,
+                            )),
+                        ),
                     ]),
                 ],
             ),

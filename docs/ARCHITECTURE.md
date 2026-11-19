@@ -47,7 +47,7 @@ else, and the window e2e fails on any refusal in the app's log.
 | `formats/` | 19 | File formats the game and the tools speak: KeyValues, VPK, compiled resources, textures, images, archives. |
 | `game/` | 18 | Dota on this machine: finding it, its language folders, gameinfo and signatures, watching it run and patch. |
 | `install/` | 21 | Putting mods into the game and keeping the record of them: the installer, the library, imports and removal. |
-| `item_builder/` | 26 | The item builder: what a pick writes, its effects, styles, sets, sounds and the look on everybody. |
+| `item_builder/` | 25 | The item builder: what a pick writes, its effects, styles, sets, sounds and the look on everybody. |
 | `looks/` | 33 | Looks beyond items: the menu, the map, the HUD, cursors, recolours, effect edits. |
 | `models/` | 30 | Models, particles and the 3D preview. |
 | `owner/` | 30 | The state the window talks to: one owner of settings, the library and the services, and its channels. |
@@ -535,7 +535,8 @@ says what it owns. The rest:
 | `renderer/api/*` | What every channel the window calls takes and answers |
 | `renderer/i18n.js`, `renderer/locales/*` | Russian, English and Simplified Chinese for the window; the core's own strings are `crates/mm-core/src/app/i18n.rs` |
 | `renderer/catalog/*`, `renderer/library/*`, `renderer/presets/*`, `renderer/settings/*`, `renderer/studio/*`, `renderer/home/*` | The screens, in React; Home is where the window opens and where the name in the title bar leads; Items is the catalog screen with the game's looks (`renderer/views/catalog/sections.ts`), the Workshop gathers the tools built from the game's own files |
-| `renderer/creator/*` | The author's window: drafts of mods for the catalog, opened from the account menu |
+| `renderer/creator/*` | The author's window: drafts of mods for the catalog, the upload terms, and the submissions the catalog reports back, opened from the account menu |
+| `tools/release/uploader-token.mjs` | The catalog uploader's token, encrypted into `build/stats/uploader-token.bin` for a release build and never committed |
 | `renderer/views/*` | What each screen reads and does around its components |
 | `renderer/ui/*` | Dialogs, toasts, the media player, the install queue, shared chrome |
 | `renderer/core/*` | What the screens share: the store, the router, the records, the categories, the 18+ question |

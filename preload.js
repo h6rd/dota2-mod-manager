@@ -121,6 +121,7 @@ contextBridge.exposeInMainWorld('api', {
   cosmetics: {
     slots: () => ipcRenderer.invoke('cosmetics:slots'),
     icons: (names) => ipcRenderer.invoke('cosmetics:icons', names),
+    effects: (slots) => ipcRenderer.invoke('cosmetics:effects', slots),
     heroPortraits: (ids, tall) => ipcRenderer.invoke('cosmetics:heroPortraits', ids, tall),
     heroPortraitsByName: (names) => ipcRenderer.invoke('cosmetics:heroPortraitsByName', names),
     pick: (slot, itemId, itemName, effectId, targetItemId) => ipcRenderer.invoke('cosmetics:pick', slot, itemId, itemName, effectId, targetItemId),
@@ -152,6 +153,9 @@ contextBridge.exposeInMainWorld('api', {
     attach: (id, style, kind) => ipcRenderer.invoke('creator:attach', id, style, kind),
     remove: (id) => ipcRenderer.invoke('creator:remove', id),
     export: (id, previews) => ipcRenderer.invoke('creator:export', id, previews),
+    accept: () => ipcRenderer.invoke('creator:accept'),
+    upload: (id, previews) => ipcRenderer.invoke('creator:upload', id, previews),
+    history: () => ipcRenderer.invoke('creator:history'),
   },
   hud: {
     state: () => ipcRenderer.invoke('hud:state'),

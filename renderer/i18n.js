@@ -320,6 +320,7 @@ const EN = {
   'Моды выключены — игра запустится ванильной': 'Mods disabled — the game will launch vanilla',
 
   // ---------- catalog ----------
+  'Загрузка': 'Loading',
   'Загрузка каталога…': 'Loading catalog…',
   'Не удалось загрузить каталог: {0}': 'Could not load the catalog: {0}',
   'Повторить': 'Retry',
@@ -578,21 +579,18 @@ const EN = {
   'Аккаунт': 'Account',
   'Архив сохранён · {0} МБ': 'Archive saved · {0} MB',
   'Без названия': 'Untitled',
-  'Архив собран так же, как его собирает PreMod: VPK в своём zip, превью WebP 854×480, mod.json и hash.json. Ведущему каталога ничего не придётся перепаковывать.': 'The archive is built the way PreMod builds it: the VPK in its own zip, a 854×480 WebP preview, mod.json and hash.json. The catalog’s maintainer has nothing to repack.',
   'Выбери категорию': 'Pick a category',
   'Ещё стиль': 'Another style',
   'Кабинет автора': 'Author’s desk',
   'Как в каталоге': 'As the catalog shows it',
   'Категория': 'Category',
-  'Мод для каталога: черновик хранится на этом компьютере, готовый сохраняется архивом для ведущего каталога': 'A mod for the catalog: the draft stays on this computer, and a finished one is saved as an archive for the catalog’s maintainer',
   'Название мода': 'Mod name',
   'Название стиля': 'Style name',
   'Название': 'Name',
   'Не хватает: {0}': 'Still missing: {0}',
-  'Ник в Discord или ссылка': 'Discord name or a link',
   'Новый мод': 'New mod',
   'Описание': 'Description',
-  'Сохранить архив для каталога': 'Save the archive for the catalog', 'Для каталога нужно: {0}': 'The catalog needs: {0}', 'Латиницей, с именем героя для мода героя': 'Latin letters, with the hero’s name for a hero mod',
+  'Для каталога нужно: {0}': 'The catalog needs: {0}', 'Латиницей, с именем героя для мода героя': 'Latin letters, with the hero’s name for a hero mod',
   'Стили': 'Styles',
   'Убрать стиль': 'Remove the style',
   'Удалить черновик «{0}»?': 'Delete the draft “{0}”?',
@@ -724,6 +722,13 @@ const EN = {
   'В параметрах запуска Dota стоит -language {0}': 'Dota has -language {0} in its launch options',
   ', поэтому игра читает папку dota_{0} — туда приложение моды и ставит. Уберёшь параметр, и они переедут обратно сами.':
     ', so the game reads dota_{0} and that is where the app installs. Remove the option and they move back on their own.',
+  'В параметрах запуска Dota стоит -language english': "Dota's launch options have -language english",
+  '. У английского нет своей папки, с ним Дота не увидит моды. Убери параметр: английские текст и голоса останутся. Steam → Dota 2 → Свойства → Параметры запуска.':
+    '. English has no folder of its own, so with it Dota does not see the mods. Remove the option: the English text and voices stay. Steam → Dota 2 → Properties → Launch options.',
+  'Голоса в игре будут русскими': 'The voices in the game will be Russian',
+  ': у Dota скачана русская озвучка. Нужны английские - поставь в Steam английский язык игры: Dota 2 → Свойства → Язык. Моды останутся на месте.':
+    ': Dota has the Russian voice downloaded. For English voices, set the game language to English in Steam: Dota 2 → Properties → Language. The mods stay where they are.',
+  'В параметрах запуска стоит -language english, с ним Дота не видит моды': 'The launch options have -language english, and with it Dota does not see the mods',
   '. Такого языка у Доты нет, папку по нему она не смонтирует, а язык текста он всё равно заберёт. Убери его: Steam → Dota 2 → Свойства → Параметры запуска.':
     '. Dota has no such language, so it will mount no folder for it, and it takes the text language anyway. Remove it: Steam → Dota 2 → Properties → Launch options.',
   '. Пока он там, игра берёт язык из него и монтирует папку dota_{0}, что бы приложение ни настроило. Убери его: Steam → Dota 2 → Свойства → Параметры запуска.':

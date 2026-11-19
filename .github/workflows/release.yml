@@ -131,6 +131,12 @@ jobs:
         env:
           STATS_APP_TOKEN: ${{ secrets.STATS_APP_TOKEN }}
 
+      # the catalog uploader's token, encrypted into the build from a secret and never into git
+      - name: Give the build the catalog uploader's token
+        run: node tools/release/uploader-token.mjs
+        env:
+          UPLOADER_APP_TOKEN: ${{ secrets.UPLOADER_APP_TOKEN }}
+
       # The Tauri build (src-tauri/), under the names a release has always carried
       # (tools/release/tauri-release.mjs). The installer is signed for tauri-plugin-updater with the
       # project's minisign key; latest.yml names it for the Electron copies people have now, whose
@@ -187,7 +193,8 @@ jobs:
   linux:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    # the oldest runner, for the oldest glibc the bundled WebKitGTK asks for (linux.yml says why)
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: write
@@ -207,14 +214,19 @@ jobs:
       # what Tauri builds against on Linux: WebKitGTK, the tray, icons
       - name: System libraries
         timeout-minutes: 10
-        run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+        uses: ./.github/actions/linux-libraries
+        with:
+          packages: libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Give the build the download counter's token
         run: node tools/release/stats-token.mjs
         env:
           STATS_APP_TOKEN: ${{ secrets.STATS_APP_TOKEN }}
+
+      - name: Give the build the catalog uploader's token
+        run: node tools/release/uploader-token.mjs
+        env:
+          UPLOADER_APP_TOKEN: ${{ secrets.UPLOADER_APP_TOKEN }}
 
       - name: Build and upload the AppImage to the draft
         env:
@@ -226,6 +238,8 @@ jobs:
         run: |
           set -euo pipefail
           npx tauri build --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          (cd "$RUNNER_TEMP" && "$GITHUB_WORKSPACE"/target/release/bundle/appimage/*.AppImage --appimage-extract > /dev/null)
+          node tools/release/glibc-floor.mjs "$RUNNER_TEMP/squashfs-root" 2.39
           node tools/release/tauri-release.mjs linux dist "${TAG#v}"
           cat dist/latest-linux.yml
           gh release upload "$TAG" --repo "$REPO" --clobber \
@@ -446,14 +460,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The AppImage bundles WebKitGTK but takes OpenGL from the system, as on any desktop: EGL,
+      # GLES and Mesa's drivers. The bare runner has none of them (the PR checks get them with
+      # libwebkit2gtk-4.1-dev); v4.0.0 stopped first at libEGL.so.1, then at libGLESv2.so.2.
       - name: Install AppImage runtime dependencies
         timeout-minutes: 10
-        run: |
-          # The AppImage bundles WebKitGTK but takes OpenGL from the system, as on any desktop: EGL,
-          # GLES and Mesa's drivers. The bare runner has none of them (the PR checks get them with
-          # libwebkit2gtk-4.1-dev); v4.0.0 stopped first at libEGL.so.1, then at libGLESv2.so.2.
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y xvfb libegl1 libegl-mesa0 libgles2 libgl1-mesa-dri
+        uses: ./.github/actions/linux-libraries
+        with:
+          packages: xvfb libegl1 libegl-mesa0 libgles2 libgl1-mesa-dri
       # A runner has no FUSE to mount an AppImage with, so it is unpacked. AppRun is the program
       # the AppImage would have started.
       - name: Download and unpack the AppImage from the draft
@@ -570,8 +584,12 @@ jobs:
         run: |
           $p = Start-Process -FilePath .\previous.exe -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "the last release's installer exited with $($p.ExitCode)" }
-          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter 'Dota 2 Mod Manager.exe' | Select-Object -First 1
-          if (-not $exe) { throw 'the last release installed no Dota 2 Mod Manager.exe under LOCALAPPDATA\Programs' }
+          # Electron's installer put it under LOCALAPPDATA\Programs; a fresh Tauri install goes to
+          # LOCALAPPDATA\Dota 2 Mod Manager (src-tauri/windows/installer.nsi), and one that came
+          # over 3.8 stays where 3.8 was. 4.0.0 is the last release now, so both are looked in.
+          $roots = @("$env:LOCALAPPDATA\Dota 2 Mod Manager", "$env:LOCALAPPDATA\Programs") | Where-Object { Test-Path $_ }
+          $exe = $roots | ForEach-Object { Get-ChildItem $_ -Recurse -Filter 'Dota 2 Mod Manager.exe' } | Select-Object -First 1
+          if (-not $exe) { throw 'the last release installed no Dota 2 Mod Manager.exe under LOCALAPPDATA' }
           "APP=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "installed: $($exe.FullName) $($exe.VersionInfo.ProductVersion)"
 
